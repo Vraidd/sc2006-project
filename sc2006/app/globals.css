@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @font-face {
-  font-family:Nunito;
-  src:url(./fonts/Nunito.ttf);
+  font-family: Nunito;
+  src: url(./fonts/Nunito.ttf);
 }
 
 :root {
-  /* --background: #ffffff;
-  --foreground: #171717; */
-  --background:#FAF3DD;
-  --foreground:#2A3B32;
+  /* CORE PALETTE */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
 
-  /* SURFACES (for modals, dialogs, etc.) */
+  /* SURFACES */
   --surface: #FFFFFF;
-  --surface-alt: #C8D5B9;
+  --surface-alt: #F1F5F9; 
 
-  /* MAIN COLORS */
-  --primary: #4A7C59;
-  --primary-hover: #68B0AB;
-  --secondary: #8FC0A9;
+  /* BRAND COLORS*/
+  --primary: #0D9488;
+  --primary-hover: #0F766E;
+  --secondary: #F59E0B;
+  --danger: #DC2626;
 
   /* TYPOGRAPHY */
   --font-main: 'Nunito', sans-serif;
@@ -31,6 +31,7 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
+  --color-danger: var(--danger);
 
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
@@ -38,50 +39,68 @@
   --font-sans: var(--font-main);
 }
 
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
-
-
 body {
   background: var(--background);
   color: var(--foreground);
-  /* font-family: Arial, Helvetica, sans-serif; */
-  font-family:Nunito, sans-serif
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* STANDARDIZED CHECKBOXES */
 input[type="checkbox"] {
   appearance: none;
-  width:20px;
-  height:20px;
-  background-color:aliceblue;
+  width: 20px;
+  height: 20px;
+  background-color: var(--surface);
+  border: 2px solid #CBD5E1;
+  border-radius: 6px;
   cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  vertical-align: middle;
+  position: relative;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--primary);
+  background-color: var(--surface-alt);
 }
 
 input[type="checkbox"]:checked {
-  width:20px;
-  height:20px;
-  background-color: #2ecc71;
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 
+/* TICK GLYPH */
+input[type="checkbox"]::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  background-color: white;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+input[type="checkbox"]:checked::after {
+  transform: scale(1);
+}
+
+/* ACCESSIBILITY: Focus Ring */
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* UTILITIES  */
 @layer utilities {
   @keyframes shake {
     0%, 100% { transform: translateX(0) }
-    25% { transform:tranlslateX(-5px) }
-    75% { transform:translateX(5px)}
+    25% { transform: translateX(-5px) }
+    75% { transform: translateX(5px) }
   }
   .animate-shake {
-    animation: shake 0.2s east-in-out 3;
+    animation: shake 0.2s ease-in-out 3;
   }
 }
-
-/* input[type="checkbox"]::before {
-
-}
-
-input[type="checkbox"]:checked::before {
-  transform: scale(1);
-} */
