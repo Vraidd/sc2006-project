@@ -1,6 +1,7 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
+import { useAuth } from "@/hooks/useAuth";
 import { 
     Upload, 
     Mail, 
@@ -17,19 +18,43 @@ import {
 
 // DUMMY DATA
 const initialUser = {
-    initials: "D",
-    email: "dummy@dummy.com",
-    name: "Dummy",
-    phone: "+65 XXXX XXXX"
+    initials: "",
+    email: "",
+    name: "",
+    phone: ""
 };
 
 export default function OwnerProfile() {
+    const { user, loading } = useAuth();
+    const [profileData, setProfileData] = useState(initialUser);
+    
+    useEffect(() => {
+    if (user && !loading) {
+        setProfileData({
+        initials: user.name?.[0] || '',
+        email: user.email || '',
+        name: user.name || '',
+        phone: user.phone || ''
+        });
+    }
+    }, [user]);
+
+    
+    
+    const dataUser = {
+        initials: user?.name?.[0],
+        email: user?.email,
+        name: user?.name,
+        phone: user?.phone
+    };
     const [activeTab, setActiveTab] = useState("personal");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     
     // State to manage form data
-    const [profileData, setProfileData] = useState(initialUser);
+    //const [profileData, setProfileData] = useState(dataUser);
+    // console.log(dataUser)
+    // console.log(profileData)
     const [reports, setReports] = useState([
         {
             id: 1,
@@ -45,7 +70,7 @@ export default function OwnerProfile() {
         // Here is where you would call your API TINGY
         setIsEditing(false);
     };
-
+    if (loading) return <div>Loading...</div>;
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />

@@ -1,18 +1,24 @@
 "use client"
-import { useState, FormEvent } from "react";
+import { SyntheticEvent, useState } from "react";
 import Navbar from "../components/Navbar";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Signin() {
-    const [username, setUsername] = useState("");
+    const router = useRouter();
+    const { login, loading: authLoading } = useAuth();
+    const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
+    const [rememberMe, setRememberMe] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
+    
 
-    function login(event: FormEvent) {
+    async function loginHandler(event: SyntheticEvent) {
         event.preventDefault();
         setErrorMsg(""); // clear prev errors
 
-        if (!username) {
+        if (!identifier) {
             setErrorMsg("Please enter your email or username.");
             return;
         }
@@ -22,10 +28,28 @@ export default function Signin() {
         }
 
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        const isEmail = emailRegex.test(username);
+        const isEmail = emailRegex.test(identifier);
         
-        console.log("Processing login:", { username, password, isEmail });
+        console.log("Processing login:", { identifier, password, isEmail });
         // TODO: api thingy goes down here
+        try {
+            
+            const data = await login(identifier, password, rememberMe);
+            
+            // Redirect based on role
+            if (data.user.role === 'ADMIN') {
+                router.push('/admin/dashboard');
+            } else if (data.user.role === 'CAREGIVER') {
+                router.push('/caregiver');
+            } else {
+                router.push('/owner');
+            }
+            
+            router.refresh();
+
+        } catch (error: any) {
+            setErrorMsg(error.message || 'Login failed');
+        }
     }
         
     return (
@@ -48,14 +72,15 @@ export default function Signin() {
                         </div>
                     )}
 
-                    <form onSubmit={login} className="space-y-5">
+                    <form onSubmit={loginHandler} className="space-y-5">
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
                             <input 
                                 id="username" 
                                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
-                                onChange={e => setUsername(e.target.value)} 
+                                onChange={e => setIdentifier(e.target.value)} 
                                 type="text"
+                                name="identifier"
                                 placeholder="name@example.com"
                             />
                         </div>
@@ -67,13 +92,14 @@ export default function Signin() {
                                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                                 onChange={e => setPassword(e.target.value)} 
                                 type="password"
+                                name="password"
                                 placeholder=""
                             />
                         </div>
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <input id="remember-me" type="checkbox" className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500" />
+                                <input id="remember-me" type="checkbox" name="rememberMe" className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500" />
                                 <label htmlFor="remember-me" className="text-sm text-gray-600">Remember me</label>
                             </div>
                             <Link href="/forgot_password" className="text-sm font-medium text-teal-600 hover:text-teal-700">

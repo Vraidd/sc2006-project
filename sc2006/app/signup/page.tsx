@@ -10,6 +10,7 @@ export default function Signup() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
+    const [successMsg, setSuccessMsg] = useState("");
 
     // PWD VALIDATION STATES
     const [isPwdNumbersPresent, setPwdNumbersPresent] = useState(false);
@@ -32,8 +33,7 @@ export default function Signup() {
         validatePassword(newPwd);
     }
 
-    function signup(event: FormEvent) {
-        event.preventDefault();
+    const signup = async (formData: FormData) => {
         setErrorMsg("");
 
         if (!validatePassword(password) || password.length < 8) {
@@ -46,6 +46,40 @@ export default function Signup() {
         }
 
         console.log("Processing signup:", { email, username });
+
+        try {
+            const dataToPass = Object.fromEntries(formData.entries());
+  
+            const payload = {
+                email: dataToPass.email as string,
+                name: dataToPass.username as string,    // username → name
+                password: dataToPass.password as string,
+                role: dataToPass.role as string
+            };
+            const jsonString = JSON.stringify(payload);
+
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: jsonString,
+            })
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Signup failed')
+            }
+            
+            const data = await response.json()
+            if (data.user) { 
+                setSuccessMsg("Account created successfully!");
+            }
+            // Redirect or set session
+            // window.location.href = '/dashboard'
+        } catch (err: any) {
+            setErrorMsg(err.message)
+            console.log(err.message, err.field)
+        }
     }
         
     return (
@@ -82,13 +116,19 @@ export default function Signup() {
                                 {errorMsg}
                             </div>
                         )}
+                        {successMsg && (
+                            <div className="mb-6 p-3 bg-green-50 border border-green-100 text-green-600 text-sm rounded-lg animate-pulse">
+                                {successMsg}
+                            </div>
+                        )}
 
-                        <form onSubmit={signup} className="space-y-5">
+                        <form action={signup} className="space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                 <input 
                                     required
                                     type="email" 
+                                    name="email"
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                                     onChange={e => setEmail(e.target.value)} 
                                     placeholder="name@example.com"
@@ -100,6 +140,7 @@ export default function Signup() {
                                 <input 
                                     required
                                     type="text" 
+                                    name="username"
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                                     onChange={e => setUsername(e.target.value)} 
                                     placeholder="Choose a unique username"
@@ -111,6 +152,7 @@ export default function Signup() {
                                 <input 
                                     required
                                     type="password" 
+                                    name="password"
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                                     onChange={handlePasswordChange} 
                                     placeholder="Create a strong password"
@@ -140,7 +182,7 @@ export default function Signup() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password </label>
                                 <input 
                                     required
                                     type="password" 
@@ -148,6 +190,33 @@ export default function Signup() {
                                     onChange={e => setConfirmPassword(e.target.value)} 
                                     placeholder="Repeat your password"
                                 />
+                            </div>
+                            <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Sign up as
+                            </label>
+
+                            <div className="flex gap-4 text-sm font-medium text-gray-700 mb-1">
+                                <label className="flex items-center gap-2">
+                                <input
+                                    required
+                                    type="radio"
+                                    name="role"
+                                    value="OWNER"
+                                />
+                                Pet Owner
+                                </label>
+
+                                <label className="flex items-center gap-2">
+                                <input
+                                    required
+                                    type="radio"
+                                    name="role"
+                                    value="CAREGIVER"
+                                />
+                                Caregiver
+                                </label>
+                            </div>
                             </div>
 
                             <button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 rounded-xl hover:bg-teal-700 transition-colors shadow-md hover:shadow-teal-600/20 mt-6">

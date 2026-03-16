@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation"; 
 import { DEBUG_MODE, MOCK_ROLE } from "../lib/debugConfig";
+import { useAuth } from "@/hooks/useAuth";
 import { 
     Calendar, 
     House, 
@@ -45,6 +46,7 @@ const adminLinks = [
 ];
 
 export default function Navbar() {
+    const { user, logout } = useAuth();
     const pathname = usePathname();
     const router = useRouter(); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -52,8 +54,9 @@ export default function Navbar() {
     
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const isSignedUp = DEBUG_MODE ? MOCK_ROLE !== "GUEST" : true; 
-    const currentRole = DEBUG_MODE ? MOCK_ROLE : (pathname.includes('/owner') ? "OWNER" : (pathname.includes('/admin') ? "ADMIN" : "CAREGIVER"));
+    const isSignedUp = DEBUG_MODE ? MOCK_ROLE !== "GUEST" : user !== null; 
+    // const currentRole = DEBUG_MODE ? MOCK_ROLE : (pathname.includes('/owner') ? "OWNER" : (pathname.includes('/admin') ? "ADMIN" : "CAREGIVER"));
+    const currentRole = DEBUG_MODE ? MOCK_ROLE : user?.role;
 
     interface NavLink {
         name: string;
@@ -72,7 +75,7 @@ export default function Navbar() {
         setIsMobileMenuOpen(false);
         setIsProfileDropdownOpen(false);
         
-        router.push("/logout");
+        logout();
     };
 
     useEffect(() => {
@@ -132,18 +135,18 @@ export default function Navbar() {
                                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                                 className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black text-sm"
                             >
-                                {currentRole[0]}
+                                {DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || ''}
                             </button>
 
                             {isProfileDropdownOpen && (
                                 <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                                     <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
-                                        <p className="text-xs font-bold text-slate-900">{currentRole} ACCOUNT</p>
+                                        <p className="text-xs font-bold text-slate-900">{user?.name} ACCOUNT</p>
                                     </div>
                                     <div className="p-2">
                                         {currentRole !== "ADMIN" && (
                                             <Link 
-                                                href={`/${currentRole.toLowerCase()}/profile`} 
+                                                href={`/${currentRole?.toLowerCase()}/profile`} 
                                                 onClick={() => setIsProfileDropdownOpen(false)}
                                                 className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
                                             >
@@ -201,13 +204,13 @@ export default function Navbar() {
                             {isSignedUp && (
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3 px-2 mb-4">
-                                        <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black">{currentRole[0]}</div>
+                                        <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black">{DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || ''}</div>
                                         <p className="text-sm font-bold text-slate-900">Signed in as {currentRole}</p>
                                     </div>
                                     
                                     {currentRole !== "ADMIN" && (
                                         <Link 
-                                            href={`/${currentRole.toLowerCase()}/profile`} 
+                                            href={`/${currentRole?.toLowerCase()}/profile`} 
                                             onClick={() => setIsMobileMenuOpen(false)}
                                             className="flex items-center justify-center gap-2 w-full py-4 bg-slate-50 text-slate-700 rounded-2xl font-bold"
                                         >

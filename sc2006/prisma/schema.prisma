@@ -14,19 +14,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(PET_OWNER)
-  verified  Boolean  @default(false)
-  phone     String?  @unique
-  location  String?
-  latitude  Float?
-  longitude Float?
-  avatar    String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                      String        @id @default(cuid())
+  name                    String        @unique
+  password                String
+  email                   String        @unique
+  role                    Role          @default(OWNER)
+  verified                Boolean       @default(false)
+  status                  AccountStatus @default(ACTIVE)
+  phone                   String?       @unique
+  location                String?
+  latitude                Float?
+  longitude               Float?
+  avatar                  String?
+  createdAt               DateTime      @default(now()) @map("created_at")
+  updatedAt               DateTime      @updatedAt @map("updated_at")
+  verificationToken       String?       @unique
+  verificationTokenExpiry DateTime?
 
   // Relations
   pets                   Pet[]
@@ -230,7 +233,7 @@ model Payment {
 
 // Enums
 enum Role {
-  PET_OWNER
+  OWNER
   CAREGIVER
   ADMIN
 }
@@ -255,6 +258,7 @@ enum BookingStatus {
 }
 
 enum NotificationType {
+  WELCOME
   NEW_BOOKING
   BOOKING_ACCEPTED
   BOOKING_DECLINED
@@ -274,4 +278,10 @@ enum PaymentStatus {
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  LOCKED
 }
