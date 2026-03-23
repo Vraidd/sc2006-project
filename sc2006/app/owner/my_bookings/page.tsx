@@ -19,40 +19,6 @@ import {
     Check
 } from "lucide-react";
 
-// // DUMMY DATA - Added a "past" booking to test the review engine
-// const dummyBookings = [
-//     {
-//         id: 1,
-//         petName: "Dawg",
-//         caretakerName: "Sarah Chen",
-//         dates: "Feb 16 - Feb 19, 2026",
-//         location: "In Home",
-//         price: 260,
-//         status: "Active", 
-//         type: "active"
-//     },
-//     {
-//         id: 2,
-//         petName: "Dawg",
-//         caretakerName: "Jason Lim",
-//         dates: "Mar 05 - Mar 07, 2026",
-//         location: "Caretaker's Home",
-//         price: 150,
-//         status: "Confirmed",
-//         type: "active"
-//     },
-//     {
-//         id: 3,
-//         petName: "Dawg",
-//         caretakerName: "Lisa Wong",
-//         dates: "Jan 10 - Jan 12, 2026",
-//         location: "Caretaker's Home",
-//         price: 225,
-//         status: "Completed",
-//         type: "past"
-//     }
-// ];
-
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
     const [reviewCaregiver, setReviewCaregiver] = useState<string | null>(null);

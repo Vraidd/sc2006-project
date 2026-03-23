@@ -49,14 +49,13 @@ type UpdateData = Partial<{
   biography: string;
   petSpecies: string[];
   dogSizes: string[];
-  hourlyRate: number;
+  dailyRate: number;
   location: string;
-  // Add more fields here as needed
 }>;
 
 const ALLOWED_FIELDS: (keyof UpdateData)[] = [
-  'name', 'phone', 'biography', 'petSpecies', 
-  'dogSizes', 'hourlyRate', 'location'
+  'name', 'phone', 'biography', 'petSpecies',
+  'dogSizes', 'dailyRate', 'location'
 ];
 
 export async function PUT(request: NextRequest) {
@@ -67,13 +66,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const payload = verifyToken(accessToken, process.env.JWT_SECRET!);
-    
+
     if (!payload || typeof payload === 'string') {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const body = await request.json();
-    
+
     // Filter only allowed fields
     const updateData: UpdateData = {};
     for (const [key, value] of Object.entries(body) as [keyof UpdateData, any][]) {
@@ -86,29 +85,73 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    // Update User model
-    const updatedUser = await prisma.user.update({
+    // Fields that belong to User table
+    const userFields: (keyof UpdateData)[] = ['name', 'phone', 'location'];
+    const userUpdateData: Record<string, any> = {};
+    for (const field of userFields) {
+      if (field in updateData) userUpdateData[field] = updateData[field];
+    }
+
+    const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      data: updateData,
-      select: {
-        id: true, email: true, name: true, phone: true, 
-        role: true, avatar: true, verified: true
-      }
+      select: { role: true },
     });
+
+    let updatedUser;
+
+    if (user?.role === 'CAREGIVER') {
+      // Fields that belong to CaregiverProfile table
+      const caregiverFields: (keyof UpdateData)[] = ['name', 'location', 'biography', 'dailyRate'];
+      const caregiverUpdateData: Record<string, any> = {};
+      for (const field of caregiverFields) {
+        if (field in updateData) caregiverUpdateData[field] = updateData[field];
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const u = await tx.user.update({
+          where: { id: payload.userId },
+          data: userUpdateData,
+          select: {
+            id: true, email: true, name: true, phone: true,
+            role: true, avatar: true, verified: true, location: true,
+          },
+        });
+
+        if (Object.keys(caregiverUpdateData).length > 0) {
+          await tx.caregiverProfile.update({
+            where: { id: payload.userId },
+            data: caregiverUpdateData,
+          });
+        }
+
+        return u;
+      });
+
+      updatedUser = result;
+    } else {
+      updatedUser = await prisma.user.update({
+        where: { id: payload.userId },
+        data: userUpdateData,
+        select: {
+          id: true, email: true, name: true, phone: true,
+          role: true, avatar: true, verified: true, location: true,
+        },
+      });
+    }
 
     return NextResponse.json({ user: updatedUser });
   } catch (error: any) {
     console.error('Profile update error:', error);
-    
+
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Field value already taken' }, 
+        { error: 'Field value already taken' },
         { status: 409 }
       );
     }
-    
+
     return NextResponse.json(
-      { error: 'Failed to update profile' }, 
+      { error: 'Failed to update profile' },
       { status: 500 }
     );
   }

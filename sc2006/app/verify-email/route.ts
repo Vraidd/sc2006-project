@@ -37,6 +37,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // If caregiver, sync verified flag to caregiver profile
+    if (user.role === 'CAREGIVER') {
+      await prisma.caregiverProfile.update({
+        where: { id: user.id },
+        data: { verified: true }
+      })
+    }
+
     // Redirect to login/dashboard
     await sendWelcomeEmail(user.email, user.name)
     return NextResponse.redirect(new URL('/', request.url))
