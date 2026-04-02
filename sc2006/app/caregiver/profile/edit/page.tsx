@@ -403,7 +403,7 @@ export default function EditCaregiverProfile() {
                                     <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">Verified Peer</p>
                                 </div>
                             </div>
-                            <p className="text-sm text-slate-500 leading-relaxed text-xs">
+                            <p className="text-sm text-slate-500 leading-relaxed">
                                 To maintain your badge, ensure your information remains accurate.
                             </p>
                         </section>

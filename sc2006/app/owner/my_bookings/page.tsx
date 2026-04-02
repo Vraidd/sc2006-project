@@ -146,7 +146,7 @@ export default function Bookings() {
                 <div className="space-y-6">
                     {filteredBookings.length > 0 ? (
                         filteredBookings.map((booking) => (
-                            <div key={booking.id} className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                            <div key={booking.id} className="bg-white border border-slate-100 rounded-4xl p-8 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                                 <div className="space-y-3 flex-1">
                                     <div className="flex items-center gap-4">
                                         <h3 className="text-2xl font-black text-slate-900">{booking.petName}</h3>
