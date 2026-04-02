@@ -22,7 +22,8 @@ import {
     PlayCircle,
     AlertTriangle,
     Shield,
-    UserCheck
+    UserCheck,
+    Briefcase
 } from "lucide-react";
 
 const ownerLinks = [
@@ -295,7 +296,7 @@ export default function Navbar() {
                     {isSignedUp ? (
                         <> 
                             {/* NOTIFICATIONS - VISIBLE TO BOTH ROLES */}
-                            <div className="relative hidden lg:block" ref={notificationsRef}>
+                            {/* <div className="relative hidden lg:block" ref={notificationsRef}>
                                 <button 
                                     onClick={() => {
                                         setIsNotificationsOpen(prev => !prev);
@@ -324,7 +325,7 @@ export default function Navbar() {
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </div> */}
 
                             {/* USER ACTIONS PANEL */}
                             <div className="relative hidden lg:block" ref={dropdownRef}>
@@ -341,6 +342,7 @@ export default function Navbar() {
                                             <p className="text-xs font-bold text-slate-900">{currentRole} ACCOUNT</p>
                                         </div>
                                         <div className="p-2">
+                                            {/* VIEW PROFILE */}
                                             <Link 
                                                 href={`/${currentRole?.toLowerCase()}/profile`} 
                                                 onClick={() => setIsProfileDropdownOpen(false)}
@@ -348,6 +350,17 @@ export default function Navbar() {
                                             >
                                                 <Settings size={16} /> View Profile
                                             </Link>
+                                            {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
+                                            {
+                                                currentRole?.toLowerCase()=="owner" &&
+                                                <Link 
+                                                    href={`/${currentRole?.toLowerCase()}/apply_caretaker`} 
+                                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                                    className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
+                                                >
+                                                    <Briefcase size={16} /> Apply to be a Caretaker
+                                                </Link>
+                                            }
                                             <button 
                                                 onClick={handleLogout}
                                                 className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors mt-1"
@@ -368,7 +381,7 @@ export default function Navbar() {
 
                     {/* MOBILE TOGGLE & NOTIFICATIONS */}
                     <div className="lg:hidden flex items-center gap-2" ref={mobileNotificationsRef}>
-                        {isSignedUp && (
+                        {/* {isSignedUp && (
                             <button 
                                 onClick={() => {
                                     setIsNotificationsOpen(prev => !prev);
@@ -379,7 +392,7 @@ export default function Navbar() {
                                 <Bell size={20} />
                                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                             </button>
-                        )}
+                        )} */}
                         <button 
                             className="p-2 text-slate-500"
                             onClick={() => {
@@ -435,7 +448,7 @@ export default function Navbar() {
                             {isSignedUp && (
                                 <>
                                     {/* USER ACTIONS PANEL */}
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         <div className="flex items-center gap-3 px-2 mb-4">
                                             <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black">
                                                 {DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || ''}
@@ -446,14 +459,26 @@ export default function Navbar() {
                                         <Link 
                                             href={`/${currentRole?.toLowerCase()}/profile`} 
                                             onClick={() => setIsMobileMenuOpen(false)}
-                                            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-50 text-slate-700 rounded-2xl font-bold"
+                                            className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
                                         >
                                             <Settings size={18} /> View Profile
                                         </Link>
+
+                                        {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
+                                        {
+                                            currentRole?.toLowerCase()=="owner" &&
+                                            <Link 
+                                                href={`/${currentRole?.toLowerCase()}/apply_caretaker`} 
+                                                onClick={() => setIsProfileDropdownOpen(false)}
+                                                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
+                                            >
+                                                <Briefcase size={16} /> Apply to be a Caretaker
+                                            </Link>
+                                        }
                                         
                                         <button 
                                             onClick={handleLogout}
-                                            className="flex items-center justify-center gap-2 w-full py-4 bg-red-50 text-red-600 rounded-2xl font-bold"
+                                            className="flex items-center justify-center gap-2 w-full py-3 bg-red-50 text-red-600 rounded-2xl font-bold"
                                         >
                                             <LogOut size={18} /> Sign Out
                                         </button>

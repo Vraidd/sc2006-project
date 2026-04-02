@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MessageCircle, ChevronLeft, Send } from "lucide-react";
+import { Search, MessageCircle, ChevronLeft, Send, DollarSign, Check } from "lucide-react";
 
 type Message = {
     id: string;
@@ -22,6 +22,102 @@ type Conversation = {
     status: string;
 };
 
+// --- MOCK DATA START ---
+const MOCK_USER_ID = "user_me";
+
+const MOCK_CONVERSATIONS: Conversation[] = [
+    {
+        id: "book_1",
+        name: "Sarah Jenkins",
+        initial: "S",
+        avatar: null,
+        otherId: "user_sarah",
+        lastMessage: "PAY_REQ|150.00|PENDING",
+        date: "10:42 AM",
+        status: "ACTIVE"
+    },
+    {
+        id: "book_2",
+        name: "David Chen",
+        initial: "D",
+        avatar: null,
+        otherId: "user_david",
+        lastMessage: "I'll drop Luna off around 9 AM!",
+        date: "Yesterday",
+        status: "ACTIVE"
+    },
+    {
+        id: "book_3",
+        name: "Emily Clark",
+        initial: "E",
+        avatar: null,
+        otherId: "user_emily",
+        lastMessage: "PAY_REQ|45.00|PAID",
+        date: "Mon",
+        status: "COMPLETED"
+    }
+];
+
+const MOCK_MESSAGES: Record<string, Message[]> = {
+    "book_1": [
+        {
+            id: "m1",
+            senderId: "user_sarah",
+            content: "Hi! Just checking if Buster's booking is confirmed?",
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+            sender: { id: "user_sarah", name: "Sarah Jenkins", avatar: null }
+        },
+        {
+            id: "m2",
+            senderId: "user_me",
+            content: "Yes, all set! I've just sent over the payment request for the weekend.",
+            createdAt: new Date(Date.now() - 3600000).toISOString(),
+            sender: { id: "user_me", name: "Me", avatar: null }
+        },
+        {
+            id: "m3",
+            senderId: "user_me", // Sent by me (caretaker) -> awaiting payment
+            content: "PAY_REQ|150.00|PENDING",
+            createdAt: new Date(Date.now() - 3500000).toISOString(),
+            sender: { id: "user_me", name: "Me", avatar: null }
+        }
+    ],
+    "book_2": [
+        {
+            id: "m4",
+            senderId: "user_me",
+            content: "Hey David, just a reminder about Luna's stay tomorrow.",
+            createdAt: new Date(Date.now() - 172800000).toISOString(),
+            sender: { id: "user_me", name: "Me", avatar: null }
+        },
+        {
+            id: "m5",
+            senderId: "user_david",
+            content: "I'll drop Luna off around 9 AM!",
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+            sender: { id: "user_david", name: "David Chen", avatar: null }
+        }
+    ],
+    "book_3": [
+        {
+            id: "m6",
+            senderId: "user_emily", // Sent by other (caretaker) to me (client)
+            content: "PAY_REQ|45.00|PAID",
+            createdAt: new Date(Date.now() - 400000000).toISOString(),
+            sender: { id: "user_emily", name: "Emily Clark", avatar: null }
+        },
+        {
+            id: "m7",
+            senderId: "user_me",
+            content: "All paid! Thanks for watching him.",
+            createdAt: new Date(Date.now() - 390000000).toISOString(),
+            sender: { id: "user_me", name: "Me", avatar: null }
+        }
+    ]
+};
+// --- MOCK DATA END ---
+
+
 export default function ChatUI() {
     const searchParams = useSearchParams();
     const [search, setSearch] = useState("");
@@ -35,35 +131,47 @@ export default function ChatUI() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    // Get current user
+    // MOCK: Get current user
     useEffect(() => {
-        fetch("/api/auth/me")
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.user?.id) setCurrentUserId(data.user.id);
-            })
-            .catch(() => {});
+        setCurrentUserId(MOCK_USER_ID);
+        // fetch("/api/auth/me")
+        //     .then((r) => r.json())
+        //     .then((data) => {
+        //         if (data.user?.id) setCurrentUserId(data.user.id);
+        //     })
+        //     .catch(() => {});
     }, []);
 
-    // Fetch all conversations
+    // MOCK: Fetch all conversations
     useEffect(() => {
         setLoadingConvos(true);
-        fetch("/api/chats")
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.conversations) {
-                    setConversations(data.conversations);
-                    // Auto-select from URL param or first conversation
-                    const paramId = searchParams.get("bookingId");
-                    if (paramId) {
-                        setActiveChat(paramId);
-                    } else if (data.conversations.length > 0) {
-                        setActiveChat(data.conversations[0].id);
-                    }
-                }
-            })
-            .catch(() => {})
-            .finally(() => setLoadingConvos(false));
+        setTimeout(() => {
+            setConversations(MOCK_CONVERSATIONS);
+            const paramId = searchParams.get("bookingId");
+            if (paramId) {
+                setActiveChat(paramId);
+            } else if (MOCK_CONVERSATIONS.length > 0) {
+                setActiveChat(MOCK_CONVERSATIONS[0].id);
+            }
+            setLoadingConvos(false);
+        }, 500); // Simulate network delay
+
+        // fetch("/api/chats")
+        //     .then((r) => r.json())
+        //     .then((data) => {
+        //         if (data.conversations) {
+        //             setConversations(data.conversations);
+        //             // Auto-select from URL param or first conversation
+        //             const paramId = searchParams.get("bookingId");
+        //             if (paramId) {
+        //                 setActiveChat(paramId);
+        //             } else if (data.conversations.length > 0) {
+        //                 setActiveChat(data.conversations[0].id);
+        //             }
+        //         }
+        //     })
+        //     .catch(() => {})
+        //     .finally(() => setLoadingConvos(false));
     }, []);
 
     // Update activeConvo when activeChat or conversations change
@@ -71,18 +179,23 @@ export default function ChatUI() {
         setActiveConvo(conversations.find((c) => c.id === activeChat) ?? null);
     }, [activeChat, conversations]);
 
-    // Fetch messages when activeChat changes
+    // MOCK: Fetch messages when activeChat changes
     useEffect(() => {
         if (!activeChat) {
             setMessages([]);
             return;
         }
         setLoadingMessages(true);
-        fetch(`/api/messages?bookingId=${activeChat}`)
-            .then((r) => r.json())
-            .then((data) => setMessages(data.messages ?? []))
-            .catch(() => setMessages([]))
-            .finally(() => setLoadingMessages(false));
+        setTimeout(() => {
+            setMessages(MOCK_MESSAGES[activeChat] || []);
+            setLoadingMessages(false);
+        }, 400); // Simulate network delay
+
+        // fetch(`/api/messages?bookingId=${activeChat}`)
+        //     .then((r) => r.json())
+        //     .then((data) => setMessages(data.messages ?? []))
+        //     .catch(() => setMessages([]))
+        //     .finally(() => setLoadingMessages(false));
     }, [activeChat]);
 
     // Scroll to bottom when messages change
@@ -90,35 +203,55 @@ export default function ChatUI() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    // MOCK: Send message
     async function sendMessage() {
         if (!newMessage.trim() || !activeChat || !activeConvo) return;
 
-        try {
-            const res = await fetch("/api/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    bookingId: activeChat,
-                    receiverId: activeConvo.otherId,
-                    content: newMessage.trim(),
-                }),
-            });
-            const data = await res.json();
-            if (data.message) {
-                setMessages((prev) => [...prev, data.message]);
-                setNewMessage("");
-                // Update last message in conversation list
-                setConversations((prev) =>
-                    prev.map((c) =>
-                        c.id === activeChat
-                            ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
-                            : c
-                    )
-                );
-            }
-        } catch {
-            alert("Failed to send message");
-        }
+        const newMsgObj: Message = {
+            id: `new_${Date.now()}`,
+            senderId: MOCK_USER_ID,
+            content: newMessage.trim(),
+            createdAt: new Date().toISOString(),
+            sender: { id: MOCK_USER_ID, name: "Me", avatar: null }
+        };
+
+        setMessages((prev) => [...prev, newMsgObj]);
+        setNewMessage("");
+        
+        setConversations((prev) =>
+            prev.map((c) =>
+                c.id === activeChat
+                    ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
+                    : c
+            )
+        );
+
+        // try {
+        //     const res = await fetch("/api/messages", {
+        //         method: "POST",
+        //         headers: { "Content-Type": "application/json" },
+        //         body: JSON.stringify({
+        //             bookingId: activeChat,
+        //             receiverId: activeConvo.otherId,
+        //             content: newMessage.trim(),
+        //         }),
+        //     });
+        //     const data = await res.json();
+        //     if (data.message) {
+        //         setMessages((prev) => [...prev, data.message]);
+        //         setNewMessage("");
+        //         // Update last message in conversation list
+        //         setConversations((prev) =>
+        //             prev.map((c) =>
+        //                 c.id === activeChat
+        //                     ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
+        //                     : c
+        //             )
+        //         );
+        //     }
+        // } catch {
+        //     alert("Failed to send message");
+        // }
     }
 
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -131,6 +264,13 @@ export default function ChatUI() {
     const filtered = conversations.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase())
     );
+
+    // MOCK PAYMENT HANDLER - Link this to your DB/Stripe later
+    const handlePayNow = (messageId: string, amount: string) => {
+        // Logic to process payment goes here
+        console.log(`Processing payment of $${amount} for message ${messageId}`);
+        alert(`Simulating payment of $${amount}. When complete, update DB status to PAID.`);
+    };
 
     return (
         <div className="flex bg-slate-50 border-t border-gray-100" style={{ height: "calc(100vh - 64px)" }}>
@@ -183,7 +323,9 @@ export default function ChatUI() {
                                             <p className="text-md font-bold text-slate-900 truncate pr-2 leading-none">{chat.name}</p>
                                             <span className="text-xs font-bold text-slate-400 shrink-0 uppercase tracking-tighter">{chat.date}</span>
                                         </div>
-                                        <p className="text-sm text-slate-500 truncate font-medium">{chat.lastMessage || "No messages yet"}</p>
+                                        <p className="text-sm text-slate-500 truncate font-medium">
+                                            {chat.lastMessage.startsWith("PAY_REQ|") ? "Sent a payment request" : (chat.lastMessage || "No messages yet")}
+                                        </p>
                                     </div>
                                 </button>
                             ))}
@@ -221,6 +363,56 @@ export default function ChatUI() {
                             ) : (
                                 messages.map((msg) => {
                                     const isMe = msg.senderId === currentUserId;
+                                    const isPaymentRequest = msg.content.startsWith("PAY_REQ|");
+
+                                    // --- NEW PAYMENT CARD RENDERER ---
+                                    if (isPaymentRequest) {
+                                        const parts = msg.content.split("|");
+                                        const amount = parts[1] || "0.00";
+                                        const paymentStatus = parts[2] || "PENDING"; // "PENDING" or "PAID"
+
+                                        return (
+                                            <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                                                <div className={`w-64 p-5 rounded-2xl shadow-sm border ${
+                                                    isMe ? "bg-teal-50 border-teal-100 rounded-tr-sm" : "bg-white border-slate-200 rounded-tl-sm"
+                                                }`}>
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isMe ? "bg-teal-100 text-teal-700" : "bg-slate-50 border border-slate-100 text-slate-700"}`}>
+                                                            <DollarSign size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Payment Request</p>
+                                                            <p className="text-xl font-black text-slate-900 leading-none">${amount}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {paymentStatus === "PENDING" ? (
+                                                        isMe ? (
+                                                            <p className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-2.5 rounded-xl text-center border border-amber-100">
+                                                                Awaiting payment...
+                                                            </p>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={() => handlePayNow(msg.id, amount)}
+                                                                className="w-full flex justify-center items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black uppercase tracking-widest py-3 rounded-xl transition-all shadow-md shadow-teal-600/20 active:scale-95"
+                                                            >
+                                                                Pay Now
+                                                            </button>
+                                                        )
+                                                    ) : (
+                                                        <div className="flex items-center justify-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-black uppercase tracking-widest py-2.5 rounded-xl">
+                                                            <Check size={16} strokeWidth={3} /> Paid
+                                                        </div>
+                                                    )}
+
+                                                    <p className={`text-[10px] mt-3 font-bold uppercase tracking-tighter opacity-50 ${isMe ? "text-right text-teal-800" : "text-slate-400"}`}>
+                                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                                             <div className={`max-w-[85%] md:max-w-[70%] px-5 py-3 rounded-2xl shadow-sm ${
@@ -269,6 +461,6 @@ export default function ChatUI() {
                     </div>
                 )}
             </div>
-        </div>
+        </div> 
     );
 }

@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react";
-import { Dog, Calendar, MapPin, Inbox, Check, X } from "lucide-react";
+import { Dog, Calendar, MapPin, Inbox, Check, X, DollarSign } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
@@ -13,17 +13,77 @@ type BookingWithRelations = Booking & {
     payment: { id: string; status: string; amount: number } | null;
 };
 
+const MOCK_BOOKINGS: BookingWithRelations[] = [
+    {
+        id: "REQ-88291",
+        ownerId: "o1",
+        caregiverId: "c1",
+        startDate: new Date("2026-07-01"),
+        endDate: new Date("2026-07-05"),
+        createdAt: new Date("2026-06-15"),
+        updatedAt: new Date("2026-06-15"),
+        status: "PENDING",
+        totalPrice: 150.00,
+        specialInstructions: "Buster gets a little anxious during thunderstorms. Please keep him indoors and play his favorite jazz playlist if it rains!",
+        owner: { id: "o1", name: "Sarah Jenkins", email: "sarah.j@example.com", avatar: null },
+        caregiver: { id: "c1", name: "Current User", email: "me@example.com", avatar: null },
+        pets: [
+            {
+                pet: {
+                    id: "p1",
+                    name: "Buster",
+                    type: "Dog",
+                    breed: "Golden Retriever",
+                    photo: "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=150&q=80"
+                }
+            }
+        ],
+        payment: { id: "pay1", status: "PRE_AUTHORIZED", amount: 150.00 }
+    },
+    {
+        id: "REQ-99302",
+        ownerId: "o2",
+        caregiverId: "c1",
+        startDate: new Date("2026-07-10"),
+        endDate: new Date("2026-07-12"),
+        createdAt: new Date("2026-06-20"),
+        updatedAt: new Date("2026-06-20"),
+        status: "PENDING",
+        totalPrice: 75.50,
+        specialInstructions: null,
+        owner: { id: "o2", name: "David Chen", email: "d.chen@example.com", avatar: null },
+        caregiver: { id: "c1", name: "Current User", email: "me@example.com", avatar: null },
+        pets: [
+            {
+                pet: {
+                    id: "p2",
+                    name: "Luna",
+                    type: "Cat",
+                    breed: "Siamese",
+                    photo: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=150&q=80"
+                }
+            }
+        ],
+        payment: { id: "pay2", status: "PENDING", amount: 75.50 }
+    }
+];
+
 export default function IncomingRequests() {
     const { user, loading: authLoading } = useAuth();
     const { fetchBooking, updateBookingStatus, loading, error } = useBooking();
     const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+    // --- NEW STATE FOR INLINE PAYMENT UI ---
+    const [paymentModeId, setPaymentModeId] = useState<string | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState<string>("");
+
     useEffect(() => {
-        if (!user) return;
-        fetchBooking({ caregiverId: user.id }).then((data) =>
-            setBookings((data as BookingWithRelations[]).filter((b) => b.status === "PENDING"))
-        );
+        setBookings(MOCK_BOOKINGS);
+        // if (!user) return;
+        // fetchBooking({ caregiverId: user.id }).then((data) =>
+        //     setBookings((data as BookingWithRelations[]).filter((b) => b.status === "PENDING"))
+        // );
     }, [user]);
 
     const handleAction = async (bookingId: string, status: "CONFIRMED" | "DECLINED") => {
@@ -33,6 +93,17 @@ export default function IncomingRequests() {
             setBookings((prev) => prev.filter((b) => b.id !== bookingId));
         }
         setActionLoading(null);
+    };
+
+    const handlePaymentSubmit = (bookingId: string) => {
+        if (paymentAmount && !isNaN(Number(paymentAmount))) {
+            // Replace this console.log with your API call
+            console.log(`Requested $${paymentAmount} for booking ID: ${bookingId}`);
+            
+            // Reset UI
+            setPaymentModeId(null);
+            setPaymentAmount("");
+        }
     };
 
     const pendingRequests = bookings;
@@ -126,20 +197,62 @@ export default function IncomingRequests() {
                                         )}
 
                                         {/* ACTION BUTTONS */}
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <button
-                                                onClick={() => handleAction(req.id, "CONFIRMED")}
-                                                disabled={actionLoading === req.id}
-                                                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
-                                                <Check size={16} /> {actionLoading === req.id ? "Processing..." : "Accept Request"}
-                                            </button>
-                                            <button
-                                                onClick={() => handleAction(req.id, "DECLINED")}
-                                                disabled={actionLoading === req.id}
-                                                className="flex items-center justify-center gap-2 px-8 border-2 border-slate-100 hover:bg-slate-50 disabled:opacity-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
-                                                <X size={16} /> Decline
-                                            </button>
-                                        </div>
+                                        {paymentModeId === req.id ? (
+                                            // INLINE PAYMENT UI
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <div className="flex-1 relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-600">
+                                                        <DollarSign size={16} />
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Amount"
+                                                        value={paymentAmount}
+                                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                                        className="w-full pl-11 pr-4 py-4 bg-teal-50/50 border-2 border-teal-100 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-teal-400 transition-all placeholder:text-teal-300 placeholder:font-medium"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => handlePaymentSubmit(req.id)}
+                                                    disabled={!paymentAmount}
+                                                    className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
+                                                    <Check size={16} /> Confirm
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setPaymentModeId(null);
+                                                        setPaymentAmount("");
+                                                    }}
+                                                    className="flex items-center justify-center gap-2 px-6 border-2 border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
+                                                    <X size={16} /> Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            // DEFAULT BUTTONS
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <button
+                                                    onClick={() => handleAction(req.id, "CONFIRMED")}
+                                                    disabled={actionLoading === req.id}
+                                                    className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
+                                                    <Check size={16} /> {actionLoading === req.id ? "Processing..." : "Accept Request"}
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={() => setPaymentModeId(req.id)}
+                                                    disabled={actionLoading === req.id}
+                                                    className="flex items-center justify-center gap-2 px-6 border-2 border-teal-100 bg-teal-50 hover:bg-teal-100 disabled:opacity-50 text-teal-700 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
+                                                    <DollarSign size={16} /> Request Payment
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleAction(req.id, "DECLINED")}
+                                                    disabled={actionLoading === req.id}
+                                                    className="flex items-center justify-center gap-2 px-8 border-2 border-slate-100 hover:bg-slate-50 disabled:opacity-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
+                                                    <X size={16} /> Decline
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
