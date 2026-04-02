@@ -25,7 +25,7 @@ export default function ReviewModal({ caregiverName, onClose }: ReviewModalProps
         >
             <div 
                 ref={modalRef}
-                className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col"
+                className="bg-white rounded-4xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col"
             >
                 <div className="p-8 border-b border-slate-50 flex justify-between items-start bg-white">
                     <div>

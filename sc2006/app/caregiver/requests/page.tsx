@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
 import { Booking } from "@/app/generated/prisma/browser";
 
-type BookingWithRelations = Booking & {
+// Used Omit to remove the raw ID fields from the base Prisma Booking type
+type BookingWithRelations = Omit<Booking, "ownerId" | "caregiverId" | "petId"> & {
     owner: { id: string; name: string; avatar: string | null; email: string };
     caregiver: { id: string; name: string; avatar: string | null; email: string };
     pets: { pet: { id: string; name: string; type: string; breed: string | null; photo: string | null } }[];
@@ -16,8 +17,6 @@ type BookingWithRelations = Booking & {
 const MOCK_BOOKINGS: BookingWithRelations[] = [
     {
         id: "REQ-88291",
-        ownerId: "o1",
-        caregiverId: "c1",
         startDate: new Date("2026-07-01"),
         endDate: new Date("2026-07-05"),
         createdAt: new Date("2026-06-15"),
@@ -42,8 +41,6 @@ const MOCK_BOOKINGS: BookingWithRelations[] = [
     },
     {
         id: "REQ-99302",
-        ownerId: "o2",
-        caregiverId: "c1",
         startDate: new Date("2026-07-10"),
         endDate: new Date("2026-07-12"),
         createdAt: new Date("2026-06-20"),
@@ -79,11 +76,10 @@ export default function IncomingRequests() {
     const [paymentAmount, setPaymentAmount] = useState<string>("");
 
     useEffect(() => {
-        setBookings(MOCK_BOOKINGS);
-        // if (!user) return;
-        // fetchBooking({ caregiverId: user.id }).then((data) =>
-        //     setBookings((data as BookingWithRelations[]).filter((b) => b.status === "PENDING"))
-        // );
+        if (!user) return;
+        fetchBooking({ caregiverId: user.id }).then((data) =>
+            setBookings((data as unknown as BookingWithRelations[]).filter((b) => b.status === "PENDING"))
+        );
     }, [user]);
 
     const handleAction = async (bookingId: string, status: "CONFIRMED" | "DECLINED") => {

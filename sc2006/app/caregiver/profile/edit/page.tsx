@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import AvailabilityModal from "../../AvailabilityModal";
 import { 
   ChevronLeft, 
   Save, 
@@ -40,7 +41,8 @@ import {
   Scissors,
   CheckCircle2,
   Footprints,
-  Home
+  Home,
+  Calendar
 } from "lucide-react";
 
 const petOptions = [

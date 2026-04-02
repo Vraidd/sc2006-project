@@ -60,6 +60,7 @@ export default function Bookings() {
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
     const { user } = useAuth();
     const { fetchBooking, loading, error } = useBooking();
+
     useEffect(() => {
         if (user?.id) {
             loadBookings();
@@ -88,9 +89,9 @@ export default function Bookings() {
 
     const filteredBookings = bookings.filter(b => {
         if (activeTab === "active") {
-            return ["PENDING", "ACTIVE", "CONFIRMED","IN_PROGRESS"].includes(b.status);
+            return ["PENDING", "ACTIVE", "CONFIRMED","IN_PROGRESS"].includes(b.status.toUpperCase());
         } else {
-            return ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status);
+            return ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status.toUpperCase());
         }
     });
     console.log("Filtered Bookings:", filteredBookings);
@@ -222,12 +223,12 @@ export default function Bookings() {
                                     )}
 
                                     {booking.status === "Completed" && (
-                                        <button 
-                                            onClick={() => setReviewCaregiver(booking.caretakerName)}
+                                        <Link 
+                                            href="/owner/rating"
                                             className="flex-1 px-8 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <Star size={16} fill="currentColor" /> Leave Review
-                                        </button>
+                                        </Link>
                                     )}
                                 </div>
                             </div>

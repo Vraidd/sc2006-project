@@ -5,7 +5,8 @@ import Navbar from "../components/Navbar";
 import { 
     PawPrint, CheckCircle, AlertTriangle, CircleDollarSign, 
     ArrowRight, UserCheck, Settings, MapPin, Star, 
-    BadgeCheck, Check, Minus, Clock, ShieldAlert
+    BadgeCheck, Check, Minus, Clock, ShieldAlert,
+    Mail, UserX, Eye
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -20,10 +21,10 @@ export default function AdminDashboard() {
 
     const caretakers = [
         { id: 1, name: "Sarah Chen", email: "sarah.chen@example.com", location: "Central Singapore", pets: ["Dogs", "Cats"], rate: "$65/day", rating: 4.9, status: "Approved", dropoff: true, img: "https://i.pravatar.cc/150?u=sarah" },
-        { id: 2, name: "Mike Tan", email: "mike.tan@example.com", location: "East Singapore", pets: ["Birds"], rate: "$55/day", rating: 4.7, status: "Approved", dropoff: true, img: "https://i.pravatar.cc/150?u=mike" },
-        { id: 3, name: "Lisa Wong", email: "lisa.wong@example.com", location: "West Singapore", pets: ["Dogs", "Reptiles"], rate: "$75/day", rating: 4.8, status: "Pending", dropoff: false, img: "https://i.pravatar.cc/150?u=lisa" },
-        { id: 4, name: "James Lee", email: "james.lee@example.com", location: "North Singapore", pets: ["Fish"], rate: "$80/day", rating: 5.0, status: "Approved", dropoff: true, img: "https://i.pravatar.cc/150?u=james" },
-        { id: 5, name: "Emma Ng", email: "emma.ng@example.com", location: "South Singapore", pets: ["Dogs"], rate: "$70/day", rating: 4.6, status: "Pending", dropoff: false, img: "https://i.pravatar.cc/150?u=emma" },
+        { id: 2, name: "Mike Tan", email: "mike.tan@example.com", location: "East Singapore", pets: ["Birds", "Small Mammals"], rate: "$55/day", rating: 4.7, status: "Approved", dropoff: true, img: "https://i.pravatar.cc/150?u=mike" },
+        { id: 3, name: "Lisa Wong", email: "lisa.wong@example.com", location: "West Singapore", pets: ["Dogs", "Cats", "Reptiles"], rate: "$75/day", rating: 4.8, status: "Approved", dropoff: false, img: "https://i.pravatar.cc/150?u=lisa" },
+        { id: 4, name: "James Lee", email: "james.lee@example.com", location: "North Singapore", pets: ["Reptiles", "Fish"], rate: "$80/day", rating: 5.0, status: "Approved", dropoff: true, img: "https://i.pravatar.cc/150?u=james" },
+        { id: 5, name: "Emma Ng", email: "emma.ng@example.com", location: "South Singapore", pets: ["Dogs"], rate: "$70/day", rating: 4.6, status: "Approved", dropoff: false, img: "https://i.pravatar.cc/150?u=emma" },
     ];
 
     const transactions = [
@@ -59,54 +60,97 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="mb-12">
-                    <div className="inline-flex bg-white border border-slate-200 rounded-xl p-1 mb-6 shadow-sm">
-                        <button onClick={() => setActiveTab("caretakers")} className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "caretakers" ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium hover:text-slate-900"}`}>
-                            Caretakers Management
+                    {/* Updated Tabs to match the image precisely */}
+                    <div className="flex border-b border-slate-200 mb-6 gap-2">
+                        <button onClick={() => setActiveTab("caretakers")} className={`px-4 py-3 text-sm transition-colors ${activeTab === "caretakers" ? "text-slate-900 font-bold border-b-2 border-slate-900" : "text-slate-500 font-medium hover:text-slate-900"}`}>
+                            All Caretakers ({caretakers.length})
                         </button>
-                        <button onClick={() => setActiveTab("transactions")} className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "transactions" ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium hover:text-slate-900"}`}>
-                            Transaction History
+                        <button onClick={() => setActiveTab("transactions")} className={`px-4 py-3 text-sm transition-colors ${activeTab === "transactions" ? "text-slate-900 font-bold border-b-2 border-slate-900" : "text-slate-500 font-medium hover:text-slate-900"}`}>
+                            Past Transactions ({transactions.length})
                         </button>
-                        <button onClick={() => setActiveTab("reports")} className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "reports" ? "bg-slate-900 text-white font-bold" : "text-slate-500 font-medium hover:text-slate-900"}`}>
-                            Incident Reports
+                        <button onClick={() => setActiveTab("reports")} className={`px-4 py-3 text-sm transition-colors ${activeTab === "reports" ? "text-slate-900 font-bold border-b-2 border-slate-900" : "text-slate-500 font-medium hover:text-slate-900"}`}>
+                            Reports ({reports.length})
                         </button>
                     </div>
 
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
+                        {/* Caretakers Tab - Updated to match image table style precisely without manage buttons */}
                         {activeTab === "caretakers" && (
-                            <table className="w-full text-left border-collapse min-w-225">
+                            <table className="w-full text-left border-collapse whitespace-nowrap">
                                 <thead>
-                                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Caretaker</th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Location</th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Status</th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Drop-off</th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Actions</th>
+                                    <tr className="border-b border-slate-200">
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Caretaker</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Location</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Pet Types</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Daily Rate</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Rating</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Status</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Drop-off</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {caretakers.map((ct) => (
-                                        <tr key={ct.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                            <td className="py-4 px-6 flex items-center gap-3">
-                                                <img src={ct.img} className="w-10 h-10 rounded-full border border-slate-200" alt="" />
-                                                <div>
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="font-bold text-slate-900">{ct.name}</span>
-                                                        {ct.status === "Approved" && <BadgeCheck size={16} className="text-teal-500" />}
+                                        <tr key={ct.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={ct.img} alt={ct.name} className="w-9 h-9 rounded-full object-cover" />
+                                                    <div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-bold text-slate-900 text-sm">{ct.name}</span>
+                                                            <BadgeCheck size={14} className="text-teal-500" />
+                                                        </div>
+                                                        <div className="text-xs text-slate-500">{ct.email}</div>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">{ct.email}</span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6 text-sm font-medium"><MapPin size={14} className="inline mr-1"/> {ct.location}</td>
                                             <td className="py-4 px-6">
-                                                <span className={`px-3 py-1 text-[10px] font-black uppercase rounded ${ct.status === "Approved" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                                <div className="flex items-center gap-1 text-sm text-slate-600">
+                                                    <MapPin size={14} className="text-slate-400" />
+                                                    {ct.location}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex gap-2">
+                                                    {ct.pets.map(pet => (
+                                                        <span key={pet} className="px-2 py-1 bg-slate-50 border border-slate-200 text-slate-600 rounded text-xs font-medium">
+                                                            {pet}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">
+                                                {ct.rate}
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-1 text-sm font-bold text-slate-700">
+                                                    <Star size={14} className="fill-amber-400 text-amber-400" />
+                                                    {ct.rating.toFixed(1)}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span className={`px-2.5 py-1 rounded text-xs uppercase font-bold ${
+                                                    ct.status === "Approved" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                                                }`}>
                                                     {ct.status}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-6">
-                                                {ct.dropoff ? <Check size={18} className="text-green-600 font-bold" /> : <Minus size={18} className="text-slate-300" />}
+                                                {ct.dropoff ? (
+                                                    <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center text-white">
+                                                        <Check size={14} strokeWidth={3} />
+                                                    </div>
+                                                ) : (
+                                                    <Minus size={16} className="text-slate-400" />
+                                                )}
                                             </td>
                                             <td className="py-4 px-6">
-                                                <button className="text-xs font-black uppercase text-teal-600 hover:underline">Manage</button>
+                                                <button 
+                                                    onClick={() => window.location.href = `./admin/verified?search=${encodeURIComponent(ct.name)}`}
+                                                    className="text-xs font-black uppercase text-teal-600 hover:underline"
+                                                >
+                                                    Manage
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

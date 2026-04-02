@@ -1,7 +1,22 @@
+/**
+ * ChatUI Component with Payment Integration
+ * 
+ * Message Types:
+ * - "text": Regular chat messages
+ * - "payment_request": Payment request messages (owner sees Pay button, caregiver sees Awaiting status)
+ * 
+ * LOCAL DEBUG MODE:
+ * Set USE_LOCAL_DEBUG = true to use mock data for testing
+ * Set USE_LOCAL_DEBUG = false to use real backend API
+ */
+
 "use client"
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MessageCircle, ChevronLeft, Send, DollarSign, Check } from "lucide-react";
+import { Search, MessageCircle, ChevronLeft, Send, CreditCard, CheckCircle, Clock, Dog } from "lucide-react";
+
+// Local debug mode for this component only
+const USE_LOCAL_DEBUG = true;
 
 type Message = {
     id: string;
@@ -9,6 +24,14 @@ type Message = {
     content: string;
     createdAt: string;
     sender: { id: string; name: string; avatar: string | null };
+    type?: "text" | "payment_request";
+    // For payment_request type messages
+    paymentData?: {
+        amount: number;
+        status: "PENDING" | "PAID";
+        bookingId: string;
+        petName: string;
+    };
 };
 
 type Conversation = {
@@ -20,103 +43,8 @@ type Conversation = {
     lastMessage: string;
     date: string;
     status: string;
+    role: "OWNER" | "CAREGIVER";
 };
-
-// --- MOCK DATA START ---
-const MOCK_USER_ID = "user_me";
-
-const MOCK_CONVERSATIONS: Conversation[] = [
-    {
-        id: "book_1",
-        name: "Sarah Jenkins",
-        initial: "S",
-        avatar: null,
-        otherId: "user_sarah",
-        lastMessage: "PAY_REQ|150.00|PENDING",
-        date: "10:42 AM",
-        status: "ACTIVE"
-    },
-    {
-        id: "book_2",
-        name: "David Chen",
-        initial: "D",
-        avatar: null,
-        otherId: "user_david",
-        lastMessage: "I'll drop Luna off around 9 AM!",
-        date: "Yesterday",
-        status: "ACTIVE"
-    },
-    {
-        id: "book_3",
-        name: "Emily Clark",
-        initial: "E",
-        avatar: null,
-        otherId: "user_emily",
-        lastMessage: "PAY_REQ|45.00|PAID",
-        date: "Mon",
-        status: "COMPLETED"
-    }
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-    "book_1": [
-        {
-            id: "m1",
-            senderId: "user_sarah",
-            content: "Hi! Just checking if Buster's booking is confirmed?",
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            sender: { id: "user_sarah", name: "Sarah Jenkins", avatar: null }
-        },
-        {
-            id: "m2",
-            senderId: "user_me",
-            content: "Yes, all set! I've just sent over the payment request for the weekend.",
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            sender: { id: "user_me", name: "Me", avatar: null }
-        },
-        {
-            id: "m3",
-            senderId: "user_me", // Sent by me (caretaker) -> awaiting payment
-            content: "PAY_REQ|150.00|PENDING",
-            createdAt: new Date(Date.now() - 3500000).toISOString(),
-            sender: { id: "user_me", name: "Me", avatar: null }
-        }
-    ],
-    "book_2": [
-        {
-            id: "m4",
-            senderId: "user_me",
-            content: "Hey David, just a reminder about Luna's stay tomorrow.",
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            sender: { id: "user_me", name: "Me", avatar: null }
-        },
-        {
-            id: "m5",
-            senderId: "user_david",
-            content: "I'll drop Luna off around 9 AM!",
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            sender: { id: "user_david", name: "David Chen", avatar: null }
-        }
-    ],
-    "book_3": [
-        {
-            id: "m6",
-            senderId: "user_emily", // Sent by other (caretaker) to me (client)
-            content: "PAY_REQ|45.00|PAID",
-            createdAt: new Date(Date.now() - 400000000).toISOString(),
-            sender: { id: "user_emily", name: "Emily Clark", avatar: null }
-        },
-        {
-            id: "m7",
-            senderId: "user_me",
-            content: "All paid! Thanks for watching him.",
-            createdAt: new Date(Date.now() - 390000000).toISOString(),
-            sender: { id: "user_me", name: "Me", avatar: null }
-        }
-    ]
-};
-// --- MOCK DATA END ---
-
 
 export default function ChatUI() {
     const searchParams = useSearchParams();
@@ -129,49 +57,75 @@ export default function ChatUI() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [newMessage, setNewMessage] = useState("");
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [currentUserRole, setCurrentUserRole] = useState<"OWNER" | "CAREGIVER" | null>(null);
+    const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    // MOCK: Get current user
+    // Get current user
     useEffect(() => {
-        setCurrentUserId(MOCK_USER_ID);
-        // fetch("/api/auth/me")
-        //     .then((r) => r.json())
-        //     .then((data) => {
-        //         if (data.user?.id) setCurrentUserId(data.user.id);
-        //     })
-        //     .catch(() => {});
+        if (USE_LOCAL_DEBUG) {
+            // Use mock user for testing (default to OWNER role)
+            setCurrentUserId("user-owner-001");
+            setCurrentUserRole("OWNER");
+            return;
+        }
+        
+        fetch("/api/auth/me")
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.user?.id) {
+                    setCurrentUserId(data.user.id);
+                    setCurrentUserRole(data.user.role);
+                }
+            })
+            .catch(() => {});
     }, []);
 
-    // MOCK: Fetch all conversations
+    // Fetch all conversations
     useEffect(() => {
         setLoadingConvos(true);
-        setTimeout(() => {
-            setConversations(MOCK_CONVERSATIONS);
+        
+        if (USE_LOCAL_DEBUG) {
+            // Use mock conversations - show conversations where the other party has the opposite role
+            const mockConversations: Conversation[] = [
+                { id: "booking-001", name: "Sarah Johnson", initial: "SJ", avatar: null, otherId: "user-caregiver-001", lastMessage: "Payment request sent", date: "2 hours ago", status: "IN_PROGRESS", role: "CAREGIVER" },
+                { id: "booking-002", name: "Emily Davis", initial: "ED", avatar: null, otherId: "user-owner-002", lastMessage: "The booking details look great!", date: "Yesterday", status: "CONFIRMED", role: "OWNER" },
+                { id: "booking-003", name: "James Wilson", initial: "JW", avatar: null, otherId: "user-owner-003", lastMessage: "Payment completed!", date: "3 days ago", status: "COMPLETED", role: "OWNER" },
+                { id: "booking-004", name: "Lisa Anderson", initial: "LA", avatar: null, otherId: "user-caregiver-002", lastMessage: "Looking forward to next week!", date: "1 week ago", status: "CONFIRMED", role: "CAREGIVER" },
+            ];
+            
+            // Filter based on current user role (show conversations with opposite role)
+            const filtered = mockConversations.filter(c => c.role !== "OWNER");
+            setConversations(filtered);
+            
+            // Auto-select from URL param or first conversation
             const paramId = searchParams.get("bookingId");
             if (paramId) {
                 setActiveChat(paramId);
-            } else if (MOCK_CONVERSATIONS.length > 0) {
-                setActiveChat(MOCK_CONVERSATIONS[0].id);
+            } else if (filtered.length > 0) {
+                setActiveChat(filtered[0].id);
             }
+            
             setLoadingConvos(false);
-        }, 500); // Simulate network delay
-
-        // fetch("/api/chats")
-        //     .then((r) => r.json())
-        //     .then((data) => {
-        //         if (data.conversations) {
-        //             setConversations(data.conversations);
-        //             // Auto-select from URL param or first conversation
-        //             const paramId = searchParams.get("bookingId");
-        //             if (paramId) {
-        //                 setActiveChat(paramId);
-        //             } else if (data.conversations.length > 0) {
-        //                 setActiveChat(data.conversations[0].id);
-        //             }
-        //         }
-        //     })
-        //     .catch(() => {})
-        //     .finally(() => setLoadingConvos(false));
+            return;
+        }
+        
+        fetch("/api/chats")
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.conversations) {
+                    setConversations(data.conversations);
+                    // Auto-select from URL param or first conversation
+                    const paramId = searchParams.get("bookingId");
+                    if (paramId) {
+                        setActiveChat(paramId);
+                    } else if (data.conversations.length > 0) {
+                        setActiveChat(data.conversations[0].id);
+                    }
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingConvos(false));
     }, []);
 
     // Update activeConvo when activeChat or conversations change
@@ -179,23 +133,69 @@ export default function ChatUI() {
         setActiveConvo(conversations.find((c) => c.id === activeChat) ?? null);
     }, [activeChat, conversations]);
 
-    // MOCK: Fetch messages when activeChat changes
+    // Fetch messages when activeChat changes
     useEffect(() => {
         if (!activeChat) {
             setMessages([]);
             return;
         }
-        setLoadingMessages(true);
-        setTimeout(() => {
-            setMessages(MOCK_MESSAGES[activeChat] || []);
+        
+        if (USE_LOCAL_DEBUG) {
+            // Mock messages for each booking - including payment request as a message type
+            const mockMessagesByBooking: Record<string, Message[]> = {
+                "booking-001": [
+                    // Regular messages
+                    { id: "msg-001", senderId: "user-owner-001", content: "Hi Sarah! Just wanted to check in on Buddy.", createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-001", name: "Michael Chen", avatar: null }, type: "text" },
+                    { id: "msg-002", senderId: "user-caregiver-001", content: "Hi Michael! Buddy is doing great! He had a fun walk in the park this morning.", createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text" },
+                    // Payment request message (sent by caregiver)
+                    { 
+                        id: "payment-msg-001", 
+                        senderId: "user-caregiver-001", 
+                        content: "Payment request for Buddy's care", 
+                        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), 
+                        sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null },
+                        type: "payment_request",
+                        paymentData: {
+                            amount: 250.00,
+                            status: "PENDING",
+                            bookingId: "booking-001",
+                            petName: "Buddy"
+                        }
+                    },
+                ],
+                "booking-003": [
+                    // Regular messages
+                    { id: "msg-010", senderId: "user-owner-003", content: "Max had such a wonderful time with you!", createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-003", name: "James Wilson", avatar: null }, type: "text" },
+                    { id: "msg-011", senderId: "user-caregiver-001", content: "He was such a good boy! We had so much fun at the dog park.", createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text" },
+                    // Paid payment request message
+                    { 
+                        id: "payment-msg-003", 
+                        senderId: "user-caregiver-001", 
+                        content: "Payment request for Max's care", 
+                        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
+                        sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null },
+                        type: "payment_request",
+                        paymentData: {
+                            amount: 350.00,
+                            status: "PAID",
+                            bookingId: "booking-003",
+                            petName: "Max"
+                        }
+                    },
+                ],
+            };
+            
+            setMessages(mockMessagesByBooking[activeChat] || []);
             setLoadingMessages(false);
-        }, 400); // Simulate network delay
-
-        // fetch(`/api/messages?bookingId=${activeChat}`)
-        //     .then((r) => r.json())
-        //     .then((data) => setMessages(data.messages ?? []))
-        //     .catch(() => setMessages([]))
-        //     .finally(() => setLoadingMessages(false));
+            return;
+        }
+        
+        setLoadingMessages(true);
+        fetch(`/api/messages?bookingId=${activeChat}`)
+            .then((r) => r.json())
+            .then((data) => setMessages(data.messages ?? []))
+            .catch(() => setMessages([]))
+            .finally(() => setLoadingMessages(false));
     }, [activeChat]);
 
     // Scroll to bottom when messages change
@@ -203,55 +203,98 @@ export default function ChatUI() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // MOCK: Send message
+    // Handle payment processing (for owners) - with mock support
+    async function handlePayment(messageId: string, paymentData: NonNullable<Message['paymentData']>) {
+        if (USE_LOCAL_DEBUG) {
+            setProcessingPaymentId(messageId);
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Update the message to show paid status
+            setMessages(prev => prev.map(msg => 
+                msg.id === messageId 
+                    ? { ...msg, paymentData: { ...msg.paymentData!, status: "PAID" as const } }
+                    : msg
+            ));
+            setProcessingPaymentId(null);
+            alert(`Payment of $${paymentData.amount.toFixed(2)} successful!`);
+            return;
+        }
+        
+        // Real API call
+        setProcessingPaymentId(messageId);
+        try {
+            const res = await fetch("/api/payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bookingId: paymentData.bookingId,
+                    messageId: messageId,
+                }),
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                // Update the message to show paid status
+                setMessages(prev => prev.map(msg => 
+                    msg.id === messageId 
+                        ? { ...msg, paymentData: { ...msg.paymentData!, status: "PAID" as const } }
+                        : msg
+                ));
+                alert("Payment successful!");
+            } else {
+                alert("Payment failed: " + (data.error ?? "Unknown error"));
+            }
+        } catch (error) {
+            alert("Payment failed due to network error");
+        } finally {
+            setProcessingPaymentId(null);
+        }
+    }
+
     async function sendMessage() {
         if (!newMessage.trim() || !activeChat || !activeConvo) return;
 
-        const newMsgObj: Message = {
-            id: `new_${Date.now()}`,
-            senderId: MOCK_USER_ID,
-            content: newMessage.trim(),
-            createdAt: new Date().toISOString(),
-            sender: { id: MOCK_USER_ID, name: "Me", avatar: null }
-        };
+        if (USE_LOCAL_DEBUG) {
+            const newMsg: Message = {
+                id: `msg-${Date.now()}`,
+                senderId: currentUserId || "user-owner-001",
+                content: newMessage.trim(),
+                createdAt: new Date().toISOString(),
+                sender: { id: currentUserId || "user-owner-001", name: "Michael Chen", avatar: null },
+                type: "text",
+            };
+            setMessages(prev => [...prev, newMsg]);
+            setNewMessage("");
+            return;
+        }
 
-        setMessages((prev) => [...prev, newMsgObj]);
-        setNewMessage("");
-        
-        setConversations((prev) =>
-            prev.map((c) =>
-                c.id === activeChat
-                    ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
-                    : c
-            )
-        );
-
-        // try {
-        //     const res = await fetch("/api/messages", {
-        //         method: "POST",
-        //         headers: { "Content-Type": "application/json" },
-        //         body: JSON.stringify({
-        //             bookingId: activeChat,
-        //             receiverId: activeConvo.otherId,
-        //             content: newMessage.trim(),
-        //         }),
-        //     });
-        //     const data = await res.json();
-        //     if (data.message) {
-        //         setMessages((prev) => [...prev, data.message]);
-        //         setNewMessage("");
-        //         // Update last message in conversation list
-        //         setConversations((prev) =>
-        //             prev.map((c) =>
-        //                 c.id === activeChat
-        //                     ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
-        //                     : c
-        //             )
-        //         );
-        //     }
-        // } catch {
-        //     alert("Failed to send message");
-        // }
+        try {
+            const res = await fetch("/api/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bookingId: activeChat,
+                    receiverId: activeConvo.otherId,
+                    content: newMessage.trim(),
+                }),
+            });
+            const data = await res.json();
+            if (data.message) {
+                setMessages((prev) => [...prev, data.message]);
+                setNewMessage("");
+                // Update last message in conversation list
+                setConversations((prev) =>
+                    prev.map((c) =>
+                        c.id === activeChat
+                            ? { ...c, lastMessage: newMessage.trim(), date: "Now" }
+                            : c
+                    )
+                );
+            }
+        } catch {
+            alert("Failed to send message");
+        }
     }
 
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -264,13 +307,6 @@ export default function ChatUI() {
     const filtered = conversations.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase())
     );
-
-    // MOCK PAYMENT HANDLER - Link this to your DB/Stripe later
-    const handlePayNow = (messageId: string, amount: string) => {
-        // Logic to process payment goes here
-        console.log(`Processing payment of $${amount} for message ${messageId}`);
-        alert(`Simulating payment of $${amount}. When complete, update DB status to PAID.`);
-    };
 
     return (
         <div className="flex bg-slate-50 border-t border-gray-100" style={{ height: "calc(100vh - 64px)" }}>
@@ -323,9 +359,7 @@ export default function ChatUI() {
                                             <p className="text-md font-bold text-slate-900 truncate pr-2 leading-none">{chat.name}</p>
                                             <span className="text-xs font-bold text-slate-400 shrink-0 uppercase tracking-tighter">{chat.date}</span>
                                         </div>
-                                        <p className="text-sm text-slate-500 truncate font-medium">
-                                            {chat.lastMessage.startsWith("PAY_REQ|") ? "Sent a payment request" : (chat.lastMessage || "No messages yet")}
-                                        </p>
+                                        <p className="text-sm text-slate-500 truncate font-medium">{chat.lastMessage || "No messages yet"}</p>
                                     </div>
                                 </button>
                             ))}
@@ -363,56 +397,101 @@ export default function ChatUI() {
                             ) : (
                                 messages.map((msg) => {
                                     const isMe = msg.senderId === currentUserId;
-                                    const isPaymentRequest = msg.content.startsWith("PAY_REQ|");
-
-                                    // --- NEW PAYMENT CARD RENDERER ---
-                                    if (isPaymentRequest) {
-                                        const parts = msg.content.split("|");
-                                        const amount = parts[1] || "0.00";
-                                        const paymentStatus = parts[2] || "PENDING"; // "PENDING" or "PAID"
-
+                                    
+                                    // Render payment request message
+                                    if (msg.type === "payment_request" && msg.paymentData) {
+                                        const isPending = msg.paymentData.status === "PENDING";
+                                        const isOwner = currentUserRole === "OWNER";
+                                        const isProcessing = processingPaymentId === msg.id;
+                                        
                                         return (
                                             <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                                                <div className={`w-64 p-5 rounded-2xl shadow-sm border ${
-                                                    isMe ? "bg-teal-50 border-teal-100 rounded-tr-sm" : "bg-white border-slate-200 rounded-tl-sm"
+                                                <div className={`max-w-sm w-full rounded-2xl shadow-sm overflow-hidden ${
+                                                    isPending 
+                                                        ? "bg-amber-50 border-2 border-amber-200" 
+                                                        : "bg-emerald-50 border-2 border-emerald-200"
                                                 }`}>
-                                                    <div className="flex items-center gap-3 mb-4">
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isMe ? "bg-teal-100 text-teal-700" : "bg-slate-50 border border-slate-100 text-slate-700"}`}>
-                                                            <DollarSign size={20} />
+                                                    {/* Payment Card Header */}
+                                                    <div className="px-4 py-3 flex items-center gap-2 border-b border-amber-100/50">
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                                            isPending ? "bg-amber-100" : "bg-emerald-100"
+                                                        }`}>
+                                                            <CreditCard size={16} className={isPending ? "text-amber-600" : "text-emerald-600"} />
                                                         </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Payment Request</p>
-                                                            <p className="text-xl font-black text-slate-900 leading-none">${amount}</p>
+                                                        <span className={`text-xs font-bold uppercase tracking-wider ${
+                                                            isPending ? "text-amber-700" : "text-emerald-700"
+                                                        }`}>
+                                                            {isPending ? "Payment Request" : "Payment Completed"}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Payment Card Body */}
+                                                    <div className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Dog size={14} className="text-slate-500" />
+                                                            <span className="text-sm font-bold text-slate-900">{msg.paymentData.petName}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs text-slate-500">Amount</span>
+                                                            <span className="text-lg font-black text-slate-900">${msg.paymentData.amount.toFixed(2)}</span>
                                                         </div>
                                                     </div>
-
-                                                    {paymentStatus === "PENDING" ? (
-                                                        isMe ? (
-                                                            <p className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-2.5 rounded-xl text-center border border-amber-100">
-                                                                Awaiting payment...
-                                                            </p>
-                                                        ) : (
-                                                            <button 
-                                                                onClick={() => handlePayNow(msg.id, amount)}
-                                                                className="w-full flex justify-center items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black uppercase tracking-widest py-3 rounded-xl transition-all shadow-md shadow-teal-600/20 active:scale-95"
+                                                    
+                                                    {/* Payment Card Footer - Role-based actions */}
+                                                    {isPending && isOwner && !isMe && (
+                                                        <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
+                                                            <button
+                                                                onClick={() => handlePayment(msg.id, msg.paymentData!)}
+                                                                disabled={isProcessing}
+                                                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                                             >
-                                                                Pay Now
+                                                                {isProcessing ? (
+                                                                    <>
+                                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                        <span>Processing...</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <CreditCard size={14} />
+                                                                        <span>Pay Now</span>
+                                                                    </>
+                                                                )}
                                                             </button>
-                                                        )
-                                                    ) : (
-                                                        <div className="flex items-center justify-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-black uppercase tracking-widest py-2.5 rounded-xl">
-                                                            <Check size={16} strokeWidth={3} /> Paid
                                                         </div>
                                                     )}
-
-                                                    <p className={`text-[10px] mt-3 font-bold uppercase tracking-tighter opacity-50 ${isMe ? "text-right text-teal-800" : "text-slate-400"}`}>
-                                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                                    </p>
+                                                    
+                                                    {isPending && !isOwner && (
+                                                        <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
+                                                            <div className="flex items-center justify-center gap-2 text-amber-700">
+                                                                <Clock size={14} />
+                                                                <span className="text-xs font-bold">Awaiting payment</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {isPending && isMe && (
+                                                        <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
+                                                            <div className="flex items-center justify-center gap-2 text-amber-700">
+                                                                <Clock size={14} />
+                                                                <span className="text-xs font-bold">Waiting for owner to pay</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {!isPending && (
+                                                        <div className="px-4 py-3 bg-emerald-100/50 border-t border-emerald-200">
+                                                            <div className="flex items-center justify-center gap-2 text-emerald-700">
+                                                                <CheckCircle size={14} />
+                                                                <span className="text-xs font-bold">Paid</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
                                     }
-
+                                    
+                                    // Regular text message
                                     return (
                                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                                             <div className={`max-w-[85%] md:max-w-[70%] px-5 py-3 rounded-2xl shadow-sm ${
@@ -461,6 +540,6 @@ export default function ChatUI() {
                     </div>
                 )}
             </div>
-        </div> 
+        </div>
     );
 }
