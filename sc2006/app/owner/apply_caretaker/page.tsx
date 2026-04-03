@@ -16,9 +16,9 @@ import {
     Briefcase,
     FileText,
     PawPrint,
-    Home,
     X
 } from "lucide-react";
+import CaregiverAvailabilityModal from "../../components/CaregiverAvailabilityModal";
 
 const PET_TYPES = ["DOG", "CAT", "BIRD", "FISH", "REPTILE", "SMALL_ANIMAL"];
 
@@ -38,24 +38,19 @@ export default function ApplyCaretaker() {
         location: "",
         experienceYears: "",
         petPreferences: [] as string[],
-        verificationDoc: "",
+        verificationDocs: [] as { name: string; content: string }[],
     });
 
-    // Availability state
-    const [availability, setAvailability] = useState<{
-        dayOfWeek: number;
-        startTime: string;
-        endTime: string;
-    }[]>([]);
+    // Date range availability state
+    const [dateRangeAvailability, setDateRangeAvailability] = useState<{
+        startDate: Date;
+        endDate: Date;
+    } | null>(null);
 
-    const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
-    const [newAvailability, setNewAvailability] = useState({
-        dayOfWeek: 0,
-        startTime: "09:00",
-        endTime: "17:00"
-    });
-
-    const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    // Date picker state
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
+    const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
 
     useEffect(() => {
         if (!loading && user) {
@@ -77,7 +72,7 @@ export default function ApplyCaretaker() {
                         location: data.caregiver.location || "",
                         experienceYears: data.caregiver.experienceYears?.toString() || "",
                         petPreferences: data.caregiver.petPreferences || [],
-                        verificationDoc: data.caregiver.verificationDoc || "",
+                        verificationDocs: data.caregiver.verificationDocs || [],
                     });
                 }
             }
@@ -95,14 +90,38 @@ export default function ApplyCaretaker() {
         }));
     };
 
-    const addAvailability = () => {
-        setAvailability(prev => [...prev, { ...newAvailability }]);
-        setShowAvailabilityModal(false);
-        setNewAvailability({ dayOfWeek: 0, startTime: "09:00", endTime: "17:00" });
+    const addDateRangeAvailability = (start: Date, end: Date | null) => {
+        if (!start || !end) return;
+        
+        setDateRangeAvailability({
+            startDate: start,
+            endDate: end
+        });
+        setShowDatePicker(false);
+        setSelectedStartDate(start);
+        setSelectedEndDate(end);
     };
 
-    const removeAvailability = (index: number) => {
-        setAvailability(prev => prev.filter((_, i) => i !== index));
+    const removeDateRangeAvailability = () => {
+        setDateRangeAvailability(null);
+        setSelectedStartDate(null);
+        setSelectedEndDate(null);
+    };
+
+    const handleFileUpload = (file: File) => {
+        if (!file) return;
+        
+        // Convert file to base64 for storage
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setFormData(prevFormData => ({
+                    ...prevFormData,
+                    verificationDocs: [...prevFormData.verificationDocs, { name: file.name, content: event.target!.result as string }]
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -123,8 +142,11 @@ export default function ApplyCaretaker() {
                 location: formData.location,
                 experienceYears: parseInt(formData.experienceYears),
                 petPreferences: formData.petPreferences,
-                verificationDoc: formData.verificationDoc,
-                availability: availability
+                verificationDocs: formData.verificationDocs,
+                availability: dateRangeAvailability ? [{
+                    startDate: dateRangeAvailability.startDate,
+                    endDate: dateRangeAvailability.endDate
+                }] : []
             };
 
             const res = await fetch("/api/caregivers/apply", {
@@ -189,10 +211,10 @@ export default function ApplyCaretaker() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans pb-20">
+        <div className="min-h-screen bg-slate-50 font-sans pb-24">
             <Navbar />
             
-            <main className="max-w-4xl mx-auto pt-12 px-6">
+            <main className="max-w-4xl mx-auto pt-6 px-4 sm:pt-12 sm:px-6">
                 {/* Header */}
                 <div className="mb-10">
                     <div className="flex items-center gap-3 mb-3">
@@ -250,7 +272,7 @@ export default function ApplyCaretaker() {
                 {/* Application Form */}
                 <form onSubmit={handleSubmit} className="space-y-8">
                     {/* Personal Information */}
-                    <div className="bg-white border border-slate-100 ruonded-4xl p-8 shadow-sm">
+                    <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
                                 <User size={20} className="text-teal-600" />
@@ -268,12 +290,12 @@ export default function ApplyCaretaker() {
                                     value={formData.biography}
                                     onChange={(e) => setFormData({...formData, biography: e.target.value})}
                                     placeholder="Tell pet owners about your experience, passion for animals, and what makes you a great caretaker..."
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all resize-none sm:px-5 sm:py-3.5 sm:rounded-2xl"
                                     disabled={hasApplied}
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                 <div>
                                     <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                                         <MapPin size={12} className="text-teal-500" /> Location <span className="text-red-500">*</span>
@@ -283,7 +305,7 @@ export default function ApplyCaretaker() {
                                         value={formData.location}
                                         onChange={(e) => setFormData({...formData, location: e.target.value})}
                                         placeholder="e.g., Central Singapore"
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all sm:px-5 sm:py-3.5 sm:rounded-2xl"
                                         disabled={hasApplied}
                                     />
                                 </div>
@@ -298,7 +320,7 @@ export default function ApplyCaretaker() {
                                         value={formData.experienceYears}
                                         onChange={(e) => setFormData({...formData, experienceYears: e.target.value})}
                                         placeholder="0"
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all sm:px-5 sm:py-3.5 sm:rounded-2xl"
                                         disabled={hasApplied}
                                     />
                                 </div>
@@ -315,7 +337,7 @@ export default function ApplyCaretaker() {
                                     value={formData.dailyRate}
                                     onChange={(e) => setFormData({...formData, dailyRate: e.target.value})}
                                     placeholder="65.00"
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all sm:px-5 sm:py-3.5 sm:rounded-2xl"
                                     disabled={hasApplied}
                                 />
                                 <p className="text-xs font-medium text-slate-400 mt-2">
@@ -326,7 +348,7 @@ export default function ApplyCaretaker() {
                     </div>
 
                     {/* Pet Preferences */}
-                    <div className="bg-white border border-slate-100 ruonded-4xl p-8 shadow-sm">
+                    <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
                                 <PawPrint size={20} className="text-teal-600" />
@@ -357,84 +379,175 @@ export default function ApplyCaretaker() {
                         </div>
                     </div>
 
-                    {/* Availability */}
-                    <div className="bg-white border border-slate-100 ruonded-4xl p-8 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
-                                    <Calendar size={20} className="text-teal-600" />
-                                </div>
-                                <h2 className="text-xl font-black text-slate-900">Availability Schedule</h2>
+                    {/* SIMPLE AVAILABILITY SECTION */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
+                                <Calendar size={20} className="text-teal-600" />
                             </div>
-                            {!hasApplied && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAvailabilityModal(true)}
-                                    className="bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-md shadow-teal-600/20"
-                                >
-                                    Add Slot
-                                </button>
-                            )}
+                            <h2 className="text-xl font-black text-slate-900">Availability Schedule</h2>
                         </div>
 
-                        {availability.length === 0 ? (
-                            <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-2xl">
-                                <Clock size={32} className="text-slate-300 mx-auto mb-3" />
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                    No availability added yet
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {availability.map((slot, index) => (
-                                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-black text-slate-900 text-sm">
-                                                {DAYS[slot.dayOfWeek]}
-                                            </span>
-                                            <span className="text-sm font-medium text-slate-600">
-                                                {slot.startTime} - {slot.endTime}
-                                            </span>
+                        <div className="flex flex-col gap-4">
+                            <p className="text-sm font-medium text-slate-600">
+                                Select the dates you are available to care for pets.
+                            </p>
+                            
+                            {dateRangeAvailability ? (
+                                <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div className="flex gap-6 items-center">
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Start Date</p>
+                                                <p className="font-bold text-slate-900">{dateRangeAvailability.startDate.toLocaleDateString()}</p>
+                                            </div>
+                                            <div className="w-8 h-px bg-slate-300 hidden sm:block"></div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">End Date</p>
+                                                <p className="font-bold text-slate-900">{dateRangeAvailability.endDate.toLocaleDateString()}</p>
+                                            </div>
                                         </div>
+                                        
                                         {!hasApplied && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeAvailability(index)}
-                                                className="text-red-500 hover:text-red-700 transition-colors"
-                                            >
-                                                <X size={18} />
-                                            </button>
+                                            <div className="flex gap-3">
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setShowDatePicker(true)} 
+                                                    className="flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-3 bg-teal-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20"
+                                                >
+                                                    Change
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={removeDateRangeAvailability} 
+                                                    className="flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-3 bg-red-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                </div>
+                            ) : (
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={() => !hasApplied && setShowDatePicker(true)}
+                                        disabled={hasApplied}
+                                        className="px-8 py-4 bg-teal-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        <Calendar size={18} />
+                                        Select Dates
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Verification Document */}
-                    <div className="bg-white border border-slate-100 ruonded-4xl p-8 shadow-sm">
+                    {/* Upload Verification Document(s) */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
                                 <FileText size={20} className="text-teal-600" />
                             </div>
-                            <h2 className="text-xl font-black text-slate-900">Verification Document</h2>
+                            <h2 className="text-xl font-black text-slate-900">Upload Verification Document(s)</h2>
                         </div>
 
                         <div className="space-y-4">
                             <p className="text-sm font-medium text-slate-600">
                                 Upload a government-issued ID or certification (optional but recommended for faster approval)
                             </p>
-                            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-teal-300 transition-colors">
-                                <Upload size={32} className="text-slate-300 mx-auto mb-3" />
-                                <p className="text-sm font-bold text-slate-600 mb-2">
-                                    Click to upload or drag and drop
-                                </p>
-                                <p className="text-xs font-medium text-slate-400">
-                                    PDF, JPG, or PNG • Max 5MB
-                                </p>
+                            <div 
+                                className={`border-2 border-dashed rounded-2xl p-8 transition-all cursor-pointer ${
+                                    formData.verificationDocs.length > 0 
+                                        ? 'border-teal-300 bg-teal-50' 
+                                        : 'border-slate-200 hover:border-teal-300'
+                                }`}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.add('border-teal-400', 'bg-teal-50');
+                                }}
+                                onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.remove('border-teal-400', 'bg-teal-50');
+                                }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    e.currentTarget.classList.remove('border-teal-400', 'bg-teal-50');
+                                    const files = e.dataTransfer.files;
+                                    if (files && files.length > 0) {
+                                        Array.from(files).forEach(handleFileUpload);
+                                    }
+                                }}
+                                onClick={() => {
+                                    if (!hasApplied) {
+                                        document.getElementById('verification-upload-input')?.click();
+                                    }
+                                }}
+                            >
+                                <div className="text-center">
+                                    <Upload size={32} className={`mx-auto mb-3 ${formData.verificationDocs.length > 0 ? 'text-teal-600' : 'text-slate-300'}`} />
+                                    <p className="text-sm font-bold text-slate-600 mb-2">
+                                        {formData.verificationDocs.length > 0 ? 'Add More Documents' : 'Click to upload or drag and drop'}
+                                    </p>
+                                    <p className="text-xs font-medium text-slate-400">
+                                        PDF, JPG, or PNG • Max 10MB
+                                    </p>
+                                </div>
+                                
+                                {/* Document List */}
+                                {formData.verificationDocs.length > 0 && (
+                                    <div className="mt-6 space-y-3">
+                                        <div className="flex items-center justify-between text-xs font-medium text-slate-600 border-b border-slate-200 pb-2">
+                                            <span>Selected Documents ({formData.verificationDocs.length})</span>
+                                            <span className="text-teal-600 font-black uppercase tracking-widest">Ready to Upload</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {formData.verificationDocs.map((doc, index) => (
+                                                <div key={index} className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3 min-h-[60px]">
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                            <FileText size={16} className="text-teal-600" />
+                                                        </div>
+                                                        <div className="text-left flex-1 min-w-0">
+                                                            <div className="font-medium text-slate-900 text-sm truncate">{doc.name}</div>
+                                                            <div className="text-xs text-slate-500 truncate">
+                                                                {doc.content.substring(0, 50)}...
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {!hasApplied && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFormData({
+                                                                    ...formData,
+                                                                    verificationDocs: formData.verificationDocs.filter((_, i) => i !== index)
+                                                                });
+                                                            }}
+                                                            className="ml-3 text-red-500 hover:text-red-700 transition-colors flex-shrink-0"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
                                 <input
+                                    id="verification-upload-input"
                                     type="file"
                                     accept=".pdf,.jpg,.jpeg,.png"
+                                    multiple
+                                    onChange={(e) => {
+                                        const files = e.target.files;
+                                        if (files && files.length > 0) {
+                                            Array.from(files).forEach(handleFileUpload);
+                                        }
+                                    }}
                                     className="hidden"
                                     disabled={hasApplied}
                                 />
@@ -452,18 +565,18 @@ export default function ApplyCaretaker() {
 
                     {/* Submit Button */}
                     {!hasApplied && (
-                        <div className="flex justify-end gap-4">
+                        <div className="flex flex-col sm:flex-row justify-end gap-4">
                             <button
                                 type="button"
                                 onClick={() => router.back()}
-                                className="px-8 py-4 border border-slate-200 bg-white rounded-2xl text-sm font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all"
+                                className="w-full sm:w-auto px-6 py-3 sm:px-8 sm:py-4 border border-slate-200 bg-white rounded-xl sm:rounded-2xl text-sm font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="px-8 py-4 bg-teal-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="w-full sm:w-auto px-6 py-3 sm:px-8 sm:py-4 bg-teal-600 text-white rounded-xl sm:rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {submitting ? (
                                     <>Processing...</>
@@ -479,71 +592,16 @@ export default function ApplyCaretaker() {
                 </form>
             </main>
 
-            {/* Availability Modal */}
-            {showAvailabilityModal && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white ruonded-4xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-slate-900">Add Availability</h3>
-                            <button
-                                onClick={() => setShowAvailabilityModal(false)}
-                                className="text-slate-400 hover:text-slate-600 transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">
-                                    Day of Week
-                                </label>
-                                <select
-                                    value={newAvailability.dayOfWeek}
-                                    onChange={(e) => setNewAvailability({...newAvailability, dayOfWeek: parseInt(e.target.value)})}
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500"
-                                >
-                                    {DAYS.map((day, index) => (
-                                        <option key={index} value={index}>{day}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">
-                                        Start Time
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={newAvailability.startTime}
-                                        onChange={(e) => setNewAvailability({...newAvailability, startTime: e.target.value})}
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">
-                                        End Time
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={newAvailability.endTime}
-                                        onChange={(e) => setNewAvailability({...newAvailability, endTime: e.target.value})}
-                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={addAvailability}
-                                className="w-full bg-teal-600 text-white px-6 py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 mt-6"
-                            >
-                                Add Availability
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* Availability Date Range Modal */}
+            {showDatePicker && (
+                <CaregiverAvailabilityModal
+                    onClose={() => setShowDatePicker(false)}
+                    onConfirm={(start: Date, end: Date | null) => {
+                        addDateRangeAvailability(start, end);
+                    }}
+                    initialStartDate={selectedStartDate}
+                    initialEndDate={selectedEndDate}
+                />
             )}
         </div>
     );

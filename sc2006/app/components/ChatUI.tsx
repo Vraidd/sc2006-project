@@ -13,7 +13,8 @@
 "use client"
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MessageCircle, ChevronLeft, Send, CreditCard, CheckCircle, Clock, Dog } from "lucide-react";
+import { Search, MessageCircle, ChevronLeft, Send, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star } from "lucide-react";
+import { useToast } from "../context/ToastContext";
 
 // Local debug mode for this component only
 const USE_LOCAL_DEBUG = true;
@@ -59,7 +60,13 @@ export default function ChatUI() {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [currentUserRole, setCurrentUserRole] = useState<"OWNER" | "CAREGIVER" | null>(null);
     const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
+    const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"paynow" | "card">("paynow");
+    const [processingPayment, setProcessingPayment] = useState(false);
+    const [paymentStep, setPaymentStep] = useState<"select" | "pay" | "processing" | "complete">("select");
+    const [pendingPaymentMsg, setPendingPaymentMsg] = useState<{id: string; data: NonNullable<Message['paymentData']> } | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const { fireToast } = useToast();
 
     // Get current user
     useEffect(() => {
@@ -203,12 +210,29 @@ export default function ChatUI() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    // Open payment dialog
+    function openPaymentDialog(messageId: string, paymentData: NonNullable<Message['paymentData']>) {
+        setPendingPaymentMsg({ id: messageId, data: paymentData });
+        setShowPaymentDialog(true);
+        setSelectedPaymentMethod("paynow");
+        setPaymentStep("select");
+    }
+
+    // Close payment dialog
+    function closePaymentDialog() {
+        setShowPaymentDialog(false);
+        setPendingPaymentMsg(null);
+        setProcessingPayment(false);
+        setPaymentStep("select");
+    }
+
     // Handle payment processing (for owners) - with mock support
     async function handlePayment(messageId: string, paymentData: NonNullable<Message['paymentData']>) {
         if (USE_LOCAL_DEBUG) {
-            setProcessingPaymentId(messageId);
+            setProcessingPayment(true);
+            setPaymentStep("processing");
             // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             // Update the message to show paid status
             setMessages(prev => prev.map(msg => 
@@ -216,8 +240,8 @@ export default function ChatUI() {
                     ? { ...msg, paymentData: { ...msg.paymentData!, status: "PAID" as const } }
                     : msg
             ));
-            setProcessingPaymentId(null);
-            alert(`Payment of $${paymentData.amount.toFixed(2)} successful!`);
+            setProcessingPayment(false);
+            setPaymentStep("complete");
             return;
         }
         
@@ -241,12 +265,12 @@ export default function ChatUI() {
                         ? { ...msg, paymentData: { ...msg.paymentData!, status: "PAID" as const } }
                         : msg
                 ));
-                alert("Payment successful!");
+                fireToast("success", "Payment Successful", `Your payment of $${paymentData.amount.toFixed(2)} has been processed.`);
             } else {
-                alert("Payment failed: " + (data.error ?? "Unknown error"));
+                fireToast("danger", "Payment Failed", data.error ?? "An unknown error occurred.");
             }
         } catch (error) {
-            alert("Payment failed due to network error");
+            fireToast("danger", "Payment Failed", "A network error occurred. Please try again.");
         } finally {
             setProcessingPaymentId(null);
         }
@@ -293,7 +317,7 @@ export default function ChatUI() {
                 );
             }
         } catch {
-            alert("Failed to send message");
+            fireToast("danger", "Failed to Send", "Could not send your message. Please try again.");
         }
     }
 
@@ -437,28 +461,28 @@ export default function ChatUI() {
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Payment Card Footer - Role-based actions */}
-                                                    {isPending && isOwner && !isMe && (
-                                                        <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
-                                                            <button
-                                                                onClick={() => handlePayment(msg.id, msg.paymentData!)}
-                                                                disabled={isProcessing}
-                                                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                                            >
-                                                                {isProcessing ? (
-                                                                    <>
-                                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                        <span>Processing...</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <CreditCard size={14} />
-                                                                        <span>Pay Now</span>
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                     {/* Payment Card Footer - Role-based actions */}
+                                                     {isPending && isOwner && !isMe && (
+                                                         <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
+                                                             <button
+                                                                 onClick={() => openPaymentDialog(msg.id, msg.paymentData!)}
+                                                                 disabled={isProcessing}
+                                                                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                             >
+                                                                 {isProcessing ? (
+                                                                     <>
+                                                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                         <span>Processing...</span>
+                                                                     </>
+                                                                 ) : (
+                                                                     <>
+                                                                         <Wallet size={14} />
+                                                                         <span>Pay Now</span>
+                                                                     </>
+                                                                 )}
+                                                             </button>
+                                                         </div>
+                                                     )}
                                                     
                                                     {isPending && !isOwner && (
                                                         <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
@@ -540,6 +564,267 @@ export default function ChatUI() {
                     </div>
                 )}
             </div>
+
+            {/* Mock Payment Dialog */}
+            {showPaymentDialog && pendingPaymentMsg && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Dialog Header */}
+                        <div className="bg-amber-500 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <Wallet className="text-white" size={20} />
+                                </div>
+                                <h3 className="text-white font-bold text-lg">Payment</h3>
+                            </div>
+                            <button
+                                onClick={closePaymentDialog}
+                                disabled={processingPayment}
+                                className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                            >
+                                <X size={16} className="text-white" />
+                            </button>
+                        </div>
+
+                        {/* Dialog Body */}
+                        <div className="p-6 space-y-6">
+                            {/* Payment Amount - Always shown */}
+                            <div className="text-center">
+                                <p className="text-sm text-slate-500 font-medium mb-1">Payment Amount</p>
+                                <p className="text-4xl font-black text-slate-900">${pendingPaymentMsg.data.amount.toFixed(2)}</p>
+                                <p className="text-xs text-slate-400 mt-2">For {pendingPaymentMsg.data.petName}'s care</p>
+                            </div>
+
+                            {/* Step 1: Payment Method Selection */}
+                            {paymentStep === "select" && (
+                                <div className="space-y-6">
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider">Select Payment Method</p>
+                                        <div className="space-y-3">
+                                            {/* PayNow Option */}
+                                            <button
+                                                onClick={() => setSelectedPaymentMethod("paynow")}
+                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                                                    selectedPaymentMethod === "paynow"
+                                                        ? "border-amber-500 bg-amber-50"
+                                                        : "border-slate-200 hover:border-slate-300"
+                                                }`}
+                                            >
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                                    selectedPaymentMethod === "paynow" ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600"
+                                                }`}>
+                                                    <QrCode size={24} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="font-bold text-slate-900">PayNow</p>
+                                                    <p className="text-xs text-slate-500">Scan QR code with your banking app</p>
+                                                </div>
+                                                {selectedPaymentMethod === "paynow" && (
+                                                    <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
+                                                        <CheckCircle size={14} className="text-white" />
+                                                    </div>
+                                                )}
+                                            </button>
+
+                                            {/* Card Option */}
+                                            <button
+                                                onClick={() => setSelectedPaymentMethod("card")}
+                                                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                                                    selectedPaymentMethod === "card"
+                                                        ? "border-amber-500 bg-amber-50"
+                                                        : "border-slate-200 hover:border-slate-300"
+                                                }`}
+                                            >
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                                    selectedPaymentMethod === "card" ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600"
+                                                }`}>
+                                                    <CreditCard size={24} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="font-bold text-slate-900">Credit/Debit Card</p>
+                                                    <p className="text-xs text-slate-500">Visa, Mastercard, or other cards</p>
+                                                </div>
+                                                {selectedPaymentMethod === "card" && (
+                                                    <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
+                                                        <CheckCircle size={14} className="text-white" />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Next Button */}
+                                    <button
+                                        onClick={() => setPaymentStep("pay")}
+                                        disabled={processingPayment}
+                                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white rounded-xl font-bold text-base uppercase tracking-wider transition-all shadow-lg shadow-amber-500/30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        <span>Next</span>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Step 2: Payment Details */}
+                            {paymentStep === "pay" && (
+                                <div className="space-y-6">
+                                    {/* PayNow QR Code */}
+                                    {selectedPaymentMethod === "paynow" && (
+                                        <div className="space-y-6">
+                                            <div className="text-center">
+                                                <p className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">Scan to Pay</p>
+                                                <div className="bg-white p-6 rounded-2xl border-2 border-slate-200 inline-block shadow-sm">
+                                                    {/* Generated QR Code Pattern */}
+                                                    <div className="w-48 h-48 overflow-hidden flex items-center justify-center">
+                                                        <img 
+                                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=paynow-booking-${pendingPaymentMsg.data.bookingId}-${pendingPaymentMsg.data.amount}&margin=0`} 
+                                                            alt="Payment QR Code" 
+                                                            className="w-full h-full object-contain"
+                                                            crossOrigin="anonymous"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-4">
+                                                    Open your banking app and scan this QR code
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <Smartphone className="text-amber-600 mt-0.5" size={18} />
+                                                    <div className="text-sm">
+                                                        <p className="font-bold text-amber-800">PayNow Instructions</p>
+                                                        <p className="text-amber-700 mt-1">
+                                                            1. Open your bank's mobile app<br/>
+                                                            2. Select "Scan & Pay" or "PayNow"<br/>
+                                                            3. Scan the QR code above<br/>
+                                                            4. Confirm the payment of <strong>${pendingPaymentMsg.data.amount.toFixed(2)}</strong>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Confirm Payment Completion Button */}
+                                            <button
+                                                onClick={() => handlePayment(pendingPaymentMsg.id, pendingPaymentMsg.data)}
+                                                disabled={processingPayment}
+                                                className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white rounded-xl font-bold text-base uppercase tracking-wider transition-all shadow-lg shadow-amber-500/30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                {processingPayment ? (
+                                                    <>
+                                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        <span>Processing...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CheckCircle size={18} />
+                                                        <span>I've Completed the Payment</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Card Payment */}
+                                    {selectedPaymentMethod === "card" && (
+                                        <div className="space-y-6">
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Card Number</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="1234 5678 9012 3456"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                                                        defaultValue="4242 4242 4242 4242"
+                                                        readOnly
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Expiry</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="MM/YY"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                                                            defaultValue="12/28"
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">CVV</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="123"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                                                            defaultValue="123"
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Pay Button */}
+                                            <button
+                                                onClick={() => handlePayment(pendingPaymentMsg.id, pendingPaymentMsg.data)}
+                                                disabled={processingPayment}
+                                                className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white rounded-xl font-bold text-base uppercase tracking-wider transition-all shadow-lg shadow-amber-500/30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                {processingPayment ? (
+                                                    <>
+                                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        <span>Processing Payment...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Wallet size={18} />
+                                                        <span>Pay Now</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Back Button */}
+                                    <button
+                                        onClick={() => setPaymentStep("select")}
+                                        className="w-full py-3 text-slate-600 hover:text-slate-800 font-bold text-sm uppercase tracking-wider transition-colors"
+                                    >
+                                        ← Back to Payment Methods
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Step 2: Processing View */}
+                            {paymentStep === "processing" && (
+                                <div className="text-center py-12">
+                                    <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-900 mb-2">Processing Payment</h3>
+                                    <p className="text-slate-500">Please wait while we verify your payment...</p>
+                                </div>
+                            )}
+
+                            {/* Step 3: Complete View */}
+                            {paymentStep === "complete" && (
+                                <div className="text-center py-12">
+                                    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <CheckCircle className="text-emerald-500" size={40} />
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-900 mb-2">Payment Successful!</h3>
+                                    <p className="text-slate-500 mb-4">Thank you for your payment.</p>
+                                    <a 
+                                        href="/owner/rating" 
+                                        className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-base uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                                    >
+                                        <Star size={18} className="fill-white text-white" />
+                                        <span>Rate your experience</span>
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

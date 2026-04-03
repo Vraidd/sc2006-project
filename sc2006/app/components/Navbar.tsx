@@ -343,13 +343,16 @@ export default function Navbar() {
                                         </div>
                                         <div className="p-2">
                                             {/* VIEW PROFILE */}
-                                            <Link 
-                                                href={`/${currentRole?.toLowerCase()}/profile`} 
-                                                onClick={() => setIsProfileDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
-                                            >
-                                                <Settings size={16} /> View Profile
-                                            </Link>
+                                            {
+                                                currentRole?.toLowerCase()!="admin" &&
+                                                <Link 
+                                                    href={`/${currentRole?.toLowerCase()}/profile`} 
+                                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                                    className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
+                                                >
+                                                    <Settings size={16} /> View Profile
+                                                </Link>
+                                            }
                                             {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
                                             {
                                                 currentRole?.toLowerCase()=="owner" &&
@@ -456,13 +459,17 @@ export default function Navbar() {
                                             <p className="text-sm font-bold text-slate-900">Signed in as {currentRole}</p>
                                         </div>
                                         
-                                        <Link 
-                                            href={`/${currentRole?.toLowerCase()}/profile`} 
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                            className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
-                                        >
-                                            <Settings size={18} /> View Profile
-                                        </Link>
+                                        {/* VIEW PROFILE (EXCEPT ADMIN) */}
+                                        {
+                                            currentRole?.toLowerCase()!="admin" &&
+                                            <Link 
+                                                href={`/${currentRole?.toLowerCase()}/profile`} 
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
+                                            >
+                                                <Settings size={18} /> View Profile
+                                            </Link>
+                                        }
 
                                         {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
                                         {

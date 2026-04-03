@@ -1,4 +1,5 @@
 "use client"
+import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 
 // DUMMY DATA
@@ -24,6 +25,66 @@ const dummyTransactions = [
         status: "Paid Out"
     }
 ];
+
+// CSV Export Function - Dynamic and Safe with Friendly Headers
+const downloadCSV = (transactions: typeof dummyTransactions) => {
+    if (!transactions || transactions.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    // Dynamically extract headers from the first transaction object
+    // Based on your data structure, this will be: id, date, petName, ownerName, gross, fee, net, status
+    const firstTransaction = transactions[0];
+    const headers = Object.keys(firstTransaction);
+    
+    // Map technical field names to user-friendly column headers
+    const headerMapping: Record<string, string> = {
+        'id': 'Transaction ID',
+        'date': 'Date',
+        'petName': 'Pet Name',
+        'ownerName': 'Owner Name',
+        'gross': 'Gross Booking',
+        'fee': 'Platform Fee',
+        'net': 'Net Payout',
+        'status': 'Status'
+    };
+    
+    // Get friendly column headers
+    const friendlyHeaders = headers.map(header => headerMapping[header] || header);
+    
+    // Format values safely for CSV
+    const formatValue = (value: any): string => {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'number') return value.toFixed(2);
+        if (typeof value === 'string') {
+            // Escape quotes and wrap in quotes if contains comma, quote, or newline
+            const escaped = value.replace(/"/g, '""');
+            return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+        }
+        return String(value);
+    };
+
+    // Convert data to CSV format
+    const csvContent = [
+        friendlyHeaders.join(','),
+        ...transactions.map(tx => 
+            headers.map(header => formatValue(tx[header as keyof typeof firstTransaction])).join(',')
+        )
+    ].join('\n');
+
+    // Create download link with dynamic filename
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_export_${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 export default function CaregiverTransactions() {
     return (
@@ -62,7 +123,10 @@ export default function CaregiverTransactions() {
                 <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-50 bg-white flex justify-between items-center">
                         <h2 className="font-bold text-slate-800">Transaction History</h2>
-                        <button className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors">
+                        <button 
+                            onClick={() => downloadCSV(dummyTransactions)}
+                            className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors"
+                        >
                             Download CSV
                         </button>
                     </div>
@@ -70,7 +134,7 @@ export default function CaregiverTransactions() {
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 <tr>
-                                    <th className="px-6 py-4">Job Details</th>
+                                    <th className="px-6 py-4">Booking Info</th>
                                     <th className="px-6 py-4 text-right">Gross Booking</th>
                                     <th className="px-6 py-4 text-right">Platform Fee (5%)</th>
                                     <th className="px-6 py-4 text-right">Net Payout</th>

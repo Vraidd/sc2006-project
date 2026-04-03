@@ -1,6 +1,7 @@
 "use client"
 import { useState, useRef } from "react";
 import { Star, X, MessageSquareQuote } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
 
 interface ReviewModalProps {
     caregiverName: string;
@@ -8,6 +9,7 @@ interface ReviewModalProps {
 }
 
 export default function ReviewModal({ caregiverName, onClose }: ReviewModalProps) {
+    const { fireToast } = useToast();
     const [rating, setRating] = useState(0);
     const [hoveredRating, setHoveredRating] = useState(0);
     const modalRef = useRef<HTMLDivElement>(null);
@@ -81,8 +83,8 @@ export default function ReviewModal({ caregiverName, onClose }: ReviewModalProps
                     >
                         Skip
                     </button>
-                    <button 
-                        onClick={() => { alert("Review submitted!"); onClose(); }}
+                        <button 
+                            onClick={() => { fireToast("success", "Review Submitted!", "Thank you for your feedback."); onClose(); }}
                         disabled={rating === 0}
                         className="flex-1 px-6 py-3.5 bg-teal-600 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-teal-700 transition-colors shadow-lg shadow-teal-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

@@ -1,5 +1,5 @@
 /**
- * AvailabilityModal for Caregivers
+ * CaregiverAvailabilityModal
  * 
  * This modal allows caregivers to set their availability dates.
  * Similar to the DatePickerModal but for setting available periods.
@@ -9,7 +9,7 @@
 import { Calendar, X } from "lucide-react";
 import { useRef, useState } from "react";
 
-interface AvailabilityModalProps {
+interface CaregiverAvailabilityModalProps {
     onClose: () => void;
     onConfirm: (startDate: Date, endDate: Date | null) => void;
     initialStartDate?: Date | null;
@@ -17,6 +17,10 @@ interface AvailabilityModalProps {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Arrow characters for calendar navigation
+const ARROW_LEFT = "\u003C"; // <
+const ARROW_RIGHT = "\u003E"; // >
 
 type SelectedDateObj = { day: number, month: string, year: number } | null;
 
@@ -29,7 +33,7 @@ const toDateObj = (date: Date | null): SelectedDateObj => {
     };
 };
 
-const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDate }: AvailabilityModalProps) => {
+const CaregiverAvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDate }: CaregiverAvailabilityModalProps) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     const initialViewDate = initialStartDate || new Date();
@@ -75,21 +79,27 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
     const emptyCells = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
     const handleDateClick = (day: number) => {
-        const clickedDateObj = { day, month: viewMonth, year: viewYear };
-        const clickedDate = new Date(viewYear, MONTHS.indexOf(viewMonth), day);
+        const clickedDateJson = { day, month: viewMonth, year: viewYear };
+        const clickedDateObj = new Date(viewYear, MONTHS.indexOf(viewMonth), day);
 
-        if (!startDate || (startDate && endDate)) {
-            setStartDate(clickedDateObj);
-            setEndDate(null);
+        if (!startDate) {
+            setStartDate(clickedDateJson);
             return;
         }
 
-        const start = new Date(startDate.year, MONTHS.indexOf(startDate.month), startDate.day);
+        const startDateObj = new Date(startDate.year, MONTHS.indexOf(startDate.month), startDate.day);
         
-        if (clickedDate > start) {
-            setEndDate(clickedDateObj);
+
+        if (clickedDateObj >= startDateObj) {
+            if (endDate) {
+                setStartDate(clickedDateJson);
+                setEndDate(null);
+            } else {
+                setEndDate(clickedDateJson);
+            }
         } else {
-            setStartDate(clickedDateObj);
+            setStartDate(clickedDateJson);
+            setEndDate(null);
         }
     };
 
@@ -149,11 +159,11 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
                     <div className="border border-gray-200 rounded-xl p-4 mb-6">
                         <div className="flex items-center justify-between mb-4 px-2">
                             <button onClick={()=>handleDateDelta(-1)} className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
-                                &lt;
+                                {ARROW_LEFT}
                             </button>
                             <span className="font-semibold text-gray-800 text-sm">{viewMonth} {viewYear}</span>
                             <button onClick={()=>handleDateDelta(1)} className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
-                                &gt;
+                                {ARROW_RIGHT}
                             </button>
                         </div>
 
@@ -195,8 +205,14 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
                                     baseStyle += "text-gray-800 hover:bg-teal-50 hover:text-teal-600 font-medium";
                                 }
 
-                                if (isStart && endDate) wrapperStyle += " bg-gradient-to-r from-transparent via-teal-50 to-teal-50";
-                                if (isEnd && startDate) wrapperStyle += " bg-gradient-to-l from-transparent via-teal-50 to-teal-50";
+                                // Only show background gradient if start and end are different dates
+                                const isSingleDay = startDate && endDate && 
+                                    startDate.day === endDate.day && 
+                                    startDate.month === endDate.month && 
+                                    startDate.year === endDate.year;
+                                
+                                if (isStart && endDate && !isEnd && !isSingleDay) wrapperStyle += " bg-gradient-to-r from-transparent via-teal-50 to-teal-50";
+                                if (isEnd && startDate && !isStart && !isSingleDay) wrapperStyle += " bg-gradient-to-l from-transparent via-teal-50 to-teal-50";
 
                                 return (
                                     <div key={date} className={wrapperStyle}>
@@ -221,7 +237,7 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
                             Cancel
                         </button>
                         <button 
-                            disabled={!startDate}
+                            disabled={!startDate || !endDate}
                             onClick={() => {
                                 if (startDate) {
                                     const startObj = new Date(startDate.year, MONTHS.indexOf(startDate.month), startDate.day);
@@ -231,7 +247,7 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
                                 }
                             }}
                             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
-                                startDate 
+                                (startDate && endDate) 
                                 ? 'bg-teal-600 hover:bg-teal-700 cursor-pointer' 
                                 : 'bg-teal-600 opacity-50 cursor-not-allowed'
                             }`}
@@ -245,4 +261,4 @@ const AvailabilityModal = ({ onClose, onConfirm, initialStartDate, initialEndDat
     );
 };
 
-export default AvailabilityModal;
+export default CaregiverAvailabilityModal;

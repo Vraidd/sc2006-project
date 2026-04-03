@@ -23,9 +23,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
+import { useToast } from "../context/ToastContext";
 import { Booking } from "@/app/generated/prisma/browser";
 import PaymentRequestModal from "./PaymentRequestModal";
-import AvailabilityModal from "./AvailabilityModal";
+import CaregiverAvailabilityModal from "../components/CaregiverAvailabilityModal";
 
 type BookingWithRelations = Booking & {
     owner: { id: string; name: string; avatar: string | null; email: string };
@@ -56,6 +57,7 @@ export default function CaregiverDashboard() {
     const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
     const [availabilityStart, setAvailabilityStart] = useState<Date | null>(null);
     const [availabilityEnd, setAvailabilityEnd] = useState<Date | null>(null);
+    const { fireToast } = useToast();
 
     const handlePaymentRequest = (booking: BookingWithRelations) => {
         setPaymentRequestBooking(booking);
@@ -69,7 +71,7 @@ export default function CaregiverDashboard() {
                 : b
         ));
         setPaymentRequestBooking(null);
-        alert(`Payment request of $${amount.toFixed(2)} sent successfully!`);
+        fireToast("success", "Payment Request Sent", `Payment request of $${amount.toFixed(2)} has been sent to the owner.`);
     };
 
     const handleAvailabilityConfirm = (startDate: Date, endDate: Date | null) => {
@@ -78,7 +80,7 @@ export default function CaregiverDashboard() {
         setShowAvailabilityModal(false);
         // TODO: Call API to save availability
         const endStr = endDate ? endDate.toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" }) : "Open-ended";
-        alert(`Availability set: ${startDate.toLocaleDateString("en-SG", { month: "short", day: "numeric" })} to ${endStr}`);
+        fireToast("info", "Availability Updated", `Your availability is set from ${startDate.toLocaleDateString("en-SG", { month: "short", day: "numeric" })} to ${endStr}.`);
     };
 
     async function openChat(ownerId: string, caregiverId: string) {
@@ -88,10 +90,10 @@ export default function CaregiverDashboard() {
             if (data.bookingId) {
                 router.push(`/caregiver/messages?bookingId=${data.bookingId}`);
             } else {
-                alert('Failed to open chat: ' + (data.error ?? 'Unknown error'));
+                fireToast("danger", "Chat Error", data.error ?? "Failed to open chat.");
             }
         } catch {
-            alert('Failed to open chat due to network error');
+            fireToast("danger", "Network Error", "Failed to open chat due to network error.");
         }
     }
 
@@ -239,8 +241,8 @@ export default function CaregiverDashboard() {
                                             <span className="text-sm font-bold text-slate-700">My Availability</span>
                                             {availabilityStart && (
                                                 <p className="text-xs text-slate-500 mt-1">
-                                                    {availabilityStart.toLocaleDateString("en-SG", { month: "short", day: "numeric" })}
-                                                    {availabilityEnd && ` - ${availabilityEnd.toLocaleDateString("en-SG", { month: "short", day: "numeric" })}`}
+                                                    {availabilityStart.toLocaleDateString("en-SG", { year:"numeric", month: "short", day: "numeric" })}
+                                                    {availabilityEnd && ` - ${availabilityEnd.toLocaleDateString("en-SG", { year:"numeric", month: "short", day: "numeric" })}`}
                                                 </p>
                                             )}
                                         </div>
@@ -285,7 +287,7 @@ export default function CaregiverDashboard() {
 
             {/* AVAILABILITY MODAL */}
             {showAvailabilityModal && (
-                <AvailabilityModal
+                <CaregiverAvailabilityModal
                     onClose={() => setShowAvailabilityModal(false)}
                     onConfirm={handleAvailabilityConfirm}
                     initialStartDate={availabilityStart}

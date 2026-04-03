@@ -1,6 +1,7 @@
 "use client"
 import { useRef } from "react";
 import { Receipt, Calendar as CalendarIcon, DollarSign, ArrowRight, ShieldCheck } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
 
 interface BookingConfirmationProps {
     caregiverName: string;
@@ -10,6 +11,7 @@ interface BookingConfirmationProps {
 }
 
 export default function BookingConfirmationModal({ caregiverName, dailyRate, days, onClose }: BookingConfirmationProps) {
+    const { fireToast } = useToast();
     const modalRef = useRef<HTMLDivElement>(null);
     
     // Platform math logic
@@ -74,7 +76,7 @@ export default function BookingConfirmationModal({ caregiverName, dailyRate, day
                             Cancel
                         </button>
                         <button 
-                            onClick={() => { alert("Request Sent!"); onClose(); }}
+                            onClick={() => { fireToast("success", "Request Sent!", "Your booking request has been sent to the caregiver."); onClose(); }}
                             className="flex-1 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest py-4 transition-all shadow-xl shadow-teal-600/20 active:scale-95 flex justify-center items-center gap-2"
                         >
                             Send Request <ArrowRight size={16} />

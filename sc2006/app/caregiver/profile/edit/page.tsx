@@ -4,7 +4,7 @@ import Navbar from "../../../components/Navbar";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import AvailabilityModal from "../../AvailabilityModal";
-import { 
+import {
   ChevronLeft, 
   Save, 
   User, 
@@ -44,6 +44,7 @@ import {
   Home,
   Calendar
 } from "lucide-react";
+import { useToast } from "../../../context/ToastContext";
 
 const petOptions = [
     { id: 'dogs', label: 'Dogs', icon: <Dog size={14} /> },
@@ -88,6 +89,7 @@ const serviceOptions = [
 export default function EditCaregiverProfile() {
     const [isSaving, setIsSaving] = useState(false);
     const { user, loading } = useAuth();
+    const { fireToast } = useToast();
     
     // Core profile data
     const [profileData, setProfileData] = useState({
@@ -181,11 +183,11 @@ export default function EditCaregiverProfile() {
             }));
             
             // Temporary visual feedback
-            alert("Profile saved successfully!");
+            fireToast("success", "Profile Saved", "Your profile has been updated successfully.");
 
         } catch (err: any) {
             console.error(err);
-            alert("Error saving profile: " + err.message);
+            fireToast("danger", "Save Failed", err.message || "An error occurred while saving your profile.");
         } finally {
             setIsSaving(false);
         }

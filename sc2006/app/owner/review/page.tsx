@@ -9,11 +9,13 @@ import {
   AlertTriangle,
   Clock
 } from "lucide-react";
+import { useToast } from "../../context/ToastContext";
 
 export default function ReviewEvidence() {
-    const handleApprove = () => alert("Check-in Approved! Record saved to audit log.");
-    const handleReupload = () => alert("Re-upload requested. Caregiver notified in-app.");
-    const handleFlag = () => alert("Incident Flagged! Redirecting to Incident Report...");
+    const { fireToast } = useToast();
+    const handleApprove = () => fireToast("success", "Check-in Approved", "Record saved to audit log.");
+    const handleReupload = () => fireToast("info", "Re-upload Requested", "Caregiver has been notified in-app.");
+    const handleFlag = () => fireToast("warning", "Incident Flagged", "Redirecting to Incident Report...");
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-20">

@@ -1,6 +1,7 @@
 "use client"
 import { useState, useRef } from "react"
 import { X, DollarSign, Send } from "lucide-react"
+import { useToast } from "../context/ToastContext"
 
 interface PaymentRequestModalProps {
     bookingId: string
@@ -19,6 +20,7 @@ export default function PaymentRequestModal({
     onClose,
     onSubmit
 }: PaymentRequestModalProps) {
+    const { fireToast } = useToast()
     const [amount, setAmount] = useState<string>("")
     const [isSubmitting, setIsSubmitting] = useState(false)
     const modalRef = useRef<HTMLDivElement>(null)
@@ -32,11 +34,11 @@ export default function PaymentRequestModal({
     const handleSubmit = () => {
         const numAmount = parseFloat(amount)
         if (isNaN(numAmount) || numAmount <= 0) {
-            alert("Please enter a valid amount")
+            fireToast("danger", "Invalid Amount", "Please enter a valid amount greater than 0.")
             return
         }
         if (numAmount > bookingTotal) {
-            alert(`Amount cannot exceed the booking total of $${bookingTotal.toFixed(2)}`)
+            fireToast("danger", "Amount Exceeds Total", `Amount cannot exceed the booking total of $${bookingTotal.toFixed(2)}.`)
             return
         }
         

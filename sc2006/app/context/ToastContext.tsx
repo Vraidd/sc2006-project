@@ -32,10 +32,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <ToastContext.Provider value={{ fireToast }}>
             {children}
             
-            {/* PORTAL: stacking container */}
-            <div className="fixed bottom-6 right-6 z-100 flex flex-col-reverse gap-3 pointer-events-none">
+            {/* Toast container - fixed at bottom-right */}
+            <div className="fixed bottom-6 right-6 flex flex-col-reverse gap-3 z-50 pointer-events-none">
                 {toasts.map((t) => (
-                    <div key={t.id} className="pointer-events-auto">
+                    <div key={t.id} className="pointer-events-auto animate-in slide-in-from-right-10 fade-in duration-300">
                         <WindowToastDialog 
                             icon={t.type}
                             title={t.title}

@@ -44,7 +44,7 @@ import {
   Fish
 } from "lucide-react";
 
-const handledSizes = ["Small (0-5kg)", "Medium (5-20kg)", "Large (20kg+)"];
+// const handledSizes = ["Small (0-5kg)", "Medium (5-20kg)", "Large (20kg+)"];
 
 const serviceDetails = [
     // 1. CORE BOARDING & CARE (TIMED)
@@ -196,7 +196,6 @@ const serviceDetails = [
 //     { id: 3, user: "Marcus Goh", rating: 4, date: "Jan 15, 2026", text: "Great experience. Clear communication and very clean environment. My dog came back happy and well-fed." }
 // ];
 
-const petsHandled = ["dogs", "cats"];
 
 const petIcons: Record<string, React.ReactNode> = {
     "dogs": <Dog size={14} />,
@@ -215,6 +214,7 @@ const initialUser = {
     location: "",
     biography: "",
     dailyRate: 0,
+    pets: ["dogs", "cats"],
 };
 
 export default function CaretakerProfile() {
@@ -233,6 +233,7 @@ export default function CaretakerProfile() {
             location: user.location || '',
             biography: user.biography || '',
             dailyRate: user.dailyRate || 0,
+            pets: (user as any).pets || [],
             });
         }
         }, [user, loading]);
@@ -283,7 +284,7 @@ export default function CaretakerProfile() {
                                 </span>
                             </div>
                             <div className="flex gap-2">
-                                {petsHandled.map(pet => (
+                                {profileData.pets.map(pet => (
                                     <span key={pet} className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                                         {petIcons[pet.toLowerCase()]} {pet}
                                     </span>

@@ -27,7 +27,7 @@ export default function RatingPage() {
         // Auto-redirect after a short delay
         setTimeout(() => {
             router.push(redirectUrl);
-        }, 1500)
+        }, 3000);
     }
 
     if (isSubmitted) {
@@ -61,7 +61,7 @@ export default function RatingPage() {
                 </Link>
 
                 <h1 className="text-3xl font-black text-slate-900 mb-2">Rate Your Experience</h1>
-                <p className="text-slate-500 font-medium mb-8">How was your booking?</p>
+                <p className="text-slate-500 font-medium mb-8">Please rate your booking experience.</p>
 
                 {/* Star Rating */}
                 <div className="bg-white rounded-3xl border border-slate-100 p-8 mb-6 shadow-sm">
@@ -95,8 +95,8 @@ export default function RatingPage() {
 
                 {/* Comment */}
                 <div className="bg-white rounded-3xl border border-slate-100 p-8 mb-6 shadow-sm">
-                    <label className="block text-sm font-black text-slate-900 mb-3">
-                        Leave a comment (optional)
+                    <label className="block text-md font-black text-slate-900 mb-3">
+                        Leave a Comment (Optional)
                     </label>
                     <textarea
                         value={comment}
