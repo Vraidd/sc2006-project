@@ -1,21 +1,15 @@
 // app/api/pets/[petId]/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 import { petUpdateSchema } from '@/app/lib/validation';
 import { z } from 'zod';
 
-interface Params {
-  params: {
-    petId: string;
-  };
-}
-
 // GET - Fetch single pet
-export async function GET(request: Request, { params }: Params) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ petId: string }> }) {
   try {
-    const { petId } = params;
+    const { petId } = await params;
 
     // Get token from cookies
     const cookieStore = await cookies();
@@ -68,10 +62,22 @@ export async function GET(request: Request, { params }: Params) {
       );
     }
 
-    // Format response
     const formattedPet = {
       ...pet,
-      bookings: pet.bookings,
+      bookings: pet.bookings.map(b => ({
+        id: b.id,
+        ownerId: b.ownerId,
+        caregiverId: b.caregiverId,
+        petId: b.petId,
+        startDate: b.startDate,
+        endDate: b.endDate,
+        status: b.status,
+        totalPrice: b.totalPrice,
+        specialInstructions: b.specialInstructions,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+        caregiver: b.caregiver,
+      })),
     };
 
     return NextResponse.json({ pet: formattedPet });
@@ -86,9 +92,9 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 // PUT - Update pet
-export async function PUT(request: Request, { params }: Params) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ petId: string }> }) {
   try {
-    const { petId } = params;
+    const { petId } = await params;
 
     // Get token from cookies
     const cookieStore = await cookies();
@@ -137,17 +143,6 @@ export async function PUT(request: Request, { params }: Params) {
       data: validatedData,
     });
 
-    // Create notification
-    // await prisma.notification.create({
-    //   data: {
-    //     userId: payload.userId,
-    //     type: 'PET_UPDATED',
-    //     title: 'Pet Updated',
-    //     message: `${updatedPet.name}'s information has been updated.`,
-    //     data: { petId: updatedPet.id },
-    //   }
-    // });
-
     return NextResponse.json({
       success: true,
       message: 'Pet updated successfully',
@@ -176,7 +171,7 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 // DELETE - Remove pet
-export async function DELETE(request: Request, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ petId: string }> }) {
   try {
     const { petId } = await params;
 

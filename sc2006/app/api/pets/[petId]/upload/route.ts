@@ -1,5 +1,5 @@
 // app/api/pets/[petId]/upload/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -7,15 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 
-interface Params {
-  params: {
-    petId: string;
-  };
-}
-
-export async function POST(request: Request, { params }: Params) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ petId: string }> }) {
   try {
-    const { petId } = params;
+    const { petId } = await params;
 
     // Check authentication
     const cookieStore = await cookies();

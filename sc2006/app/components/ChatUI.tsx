@@ -13,7 +13,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MessageCircle, ChevronLeft, Send, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star } from "lucide-react";
+import { Search, MessageCircle, ChevronLeft, Send, Paperclip, FileIcon, Download, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star } from "lucide-react";
 import { useToast } from "../context/ToastContext";
 
 // Local debug mode for this component only
@@ -25,6 +25,9 @@ type Message = {
     content: string;
     createdAt: string;
     sender: { id: string; name: string; avatar: string | null };
+    attachmentUrl: string | null;
+    attachmentName: string | null;
+    attachmentType: string | null;
     type?: "text" | "payment_request";
     // For payment_request type messages
     paymentData?: {
@@ -43,7 +46,6 @@ type Conversation = {
     otherId: string;
     lastMessage: string;
     date: string;
-    status: string;
     role: "OWNER" | "CAREGIVER";
 };
 
@@ -58,6 +60,11 @@ export default function ChatUI() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [newMessage, setNewMessage] = useState("");
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [filePreview, setFilePreview] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [currentUserRole, setCurrentUserRole] = useState<"OWNER" | "CAREGIVER" | null>(null);
     const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -66,6 +73,7 @@ export default function ChatUI() {
     const [paymentStep, setPaymentStep] = useState<"select" | "pay" | "processing" | "complete">("select");
     const [pendingPaymentMsg, setPendingPaymentMsg] = useState<{id: string; data: NonNullable<Message['paymentData']> } | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
     const { fireToast } = useToast();
 
     // Get current user
@@ -88,6 +96,50 @@ export default function ChatUI() {
             .catch(() => {});
     }, []);
 
+    // SSE for real-time message updates
+    useEffect(() => {
+        if (!activeChat || !currentUserId) return;
+
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+
+        const sseUrl = `/api/messages/stream?userId=${currentUserId}&chatId=${activeChat}`;
+        const eventSource = new EventSource(sseUrl);
+        eventSourceRef.current = eventSource;
+
+        eventSource.onmessage = (event: MessageEvent) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'message' && data.data) {
+                    const newMsg = data.data as Message;
+                    setMessages((prev) => {
+                        if (prev.find((m) => m.id === newMsg.id)) return prev;
+                        return [...prev, newMsg];
+                    });
+                    setConversations((prev) =>
+                        prev.map((c) =>
+                            c.id === activeChat
+                                ? { ...c, lastMessage: newMsg.content, date: "Now" }
+                                : c
+                        )
+                    );
+                }
+            } catch (err) {
+                console.error('Error parsing SSE message:', err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            console.log('SSE connection error, reconnecting...');
+        };
+
+        return () => {
+            eventSource.close();
+            eventSourceRef.current = null;
+        };
+    }, [activeChat, currentUserId]);
+
     // Fetch all conversations
     useEffect(() => {
         setLoadingConvos(true);
@@ -95,10 +147,10 @@ export default function ChatUI() {
         if (USE_LOCAL_DEBUG) {
             // Use mock conversations - show conversations where the other party has the opposite role
             const mockConversations: Conversation[] = [
-                { id: "booking-001", name: "Sarah Johnson", initial: "SJ", avatar: null, otherId: "user-caregiver-001", lastMessage: "Payment request sent", date: "2 hours ago", status: "IN_PROGRESS", role: "CAREGIVER" },
-                { id: "booking-002", name: "Emily Davis", initial: "ED", avatar: null, otherId: "user-owner-002", lastMessage: "The booking details look great!", date: "Yesterday", status: "CONFIRMED", role: "OWNER" },
-                { id: "booking-003", name: "James Wilson", initial: "JW", avatar: null, otherId: "user-owner-003", lastMessage: "Payment completed!", date: "3 days ago", status: "COMPLETED", role: "OWNER" },
-                { id: "booking-004", name: "Lisa Anderson", initial: "LA", avatar: null, otherId: "user-caregiver-002", lastMessage: "Looking forward to next week!", date: "1 week ago", status: "CONFIRMED", role: "CAREGIVER" },
+                { id: "booking-001", name: "Sarah Johnson", initial: "SJ", avatar: null, otherId: "user-caregiver-001", lastMessage: "Payment request sent", date: "2 hours ago", role: "CAREGIVER" },
+                { id: "booking-002", name: "Emily Davis", initial: "ED", avatar: null, otherId: "user-owner-002", lastMessage: "The booking details look great!", date: "Yesterday", role: "OWNER" },
+                { id: "booking-003", name: "James Wilson", initial: "JW", avatar: null, otherId: "user-owner-003", lastMessage: "Payment completed!", date: "3 days ago", role: "OWNER" },
+                { id: "booking-004", name: "Lisa Anderson", initial: "LA", avatar: null, otherId: "user-caregiver-002", lastMessage: "Looking forward to next week!", date: "1 week ago", role: "CAREGIVER" },
             ];
             
             // Filter based on current user role (show conversations with opposite role)
@@ -122,8 +174,7 @@ export default function ChatUI() {
             .then((data) => {
                 if (data.conversations) {
                     setConversations(data.conversations);
-                    // Auto-select from URL param or first conversation
-                    const paramId = searchParams.get("bookingId");
+                    const paramId = searchParams.get("chatId");
                     if (paramId) {
                         setActiveChat(paramId);
                     } else if (data.conversations.length > 0) {
@@ -152,8 +203,8 @@ export default function ChatUI() {
             const mockMessagesByBooking: Record<string, Message[]> = {
                 "booking-001": [
                     // Regular messages
-                    { id: "msg-001", senderId: "user-owner-001", content: "Hi Sarah! Just wanted to check in on Buddy.", createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-001", name: "Michael Chen", avatar: null }, type: "text" },
-                    { id: "msg-002", senderId: "user-caregiver-001", content: "Hi Michael! Buddy is doing great! He had a fun walk in the park this morning.", createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text" },
+                    { id: "msg-001", senderId: "user-owner-001", content: "Hi Sarah! Just wanted to check in on Buddy.", createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-001", name: "Michael Chen", avatar: null }, type: "text", attachmentUrl: null, attachmentName: null, attachmentType: null },
+                    { id: "msg-002", senderId: "user-caregiver-001", content: "Hi Michael! Buddy is doing great! He had a fun walk in the park this morning.", createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text", attachmentUrl: null, attachmentName: null, attachmentType: null },
                     // Payment request message (sent by caregiver)
                     { 
                         id: "payment-msg-001", 
@@ -162,6 +213,9 @@ export default function ChatUI() {
                         createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), 
                         sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null },
                         type: "payment_request",
+                        attachmentUrl: null,
+                        attachmentName: null,
+                        attachmentType: null,
                         paymentData: {
                             amount: 250.00,
                             status: "PENDING",
@@ -172,8 +226,8 @@ export default function ChatUI() {
                 ],
                 "booking-003": [
                     // Regular messages
-                    { id: "msg-010", senderId: "user-owner-003", content: "Max had such a wonderful time with you!", createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-003", name: "James Wilson", avatar: null }, type: "text" },
-                    { id: "msg-011", senderId: "user-caregiver-001", content: "He was such a good boy! We had so much fun at the dog park.", createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text" },
+                    { id: "msg-010", senderId: "user-owner-003", content: "Max had such a wonderful time with you!", createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-owner-003", name: "James Wilson", avatar: null }, type: "text", attachmentUrl: null, attachmentName: null, attachmentType: null },
+                    { id: "msg-011", senderId: "user-caregiver-001", content: "He was such a good boy! We had so much fun at the dog park.", createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null }, type: "text", attachmentUrl: null, attachmentName: null, attachmentType: null },
                     // Paid payment request message
                     { 
                         id: "payment-msg-003", 
@@ -182,6 +236,9 @@ export default function ChatUI() {
                         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
                         sender: { id: "user-caregiver-001", name: "Sarah Johnson", avatar: null },
                         type: "payment_request",
+                        attachmentUrl: null,
+                        attachmentName: null,
+                        attachmentType: null,
                         paymentData: {
                             amount: 350.00,
                             status: "PAID",
@@ -198,7 +255,7 @@ export default function ChatUI() {
         }
         
         setLoadingMessages(true);
-        fetch(`/api/messages?bookingId=${activeChat}`)
+        fetch(`/api/messages?chatId=${activeChat}`)
             .then((r) => r.json())
             .then((data) => setMessages(data.messages ?? []))
             .catch(() => setMessages([]))
@@ -277,7 +334,12 @@ export default function ChatUI() {
     }
 
     async function sendMessage() {
-        if (!newMessage.trim() || !activeChat || !activeConvo) return;
+        if ((!newMessage.trim() && !selectedFile) || !activeChat) return;
+
+        if (selectedFile) {
+            await sendFileMessage();
+            return;
+        }
 
         if (USE_LOCAL_DEBUG) {
             const newMsg: Message = {
@@ -287,6 +349,9 @@ export default function ChatUI() {
                 createdAt: new Date().toISOString(),
                 sender: { id: currentUserId || "user-owner-001", name: "Michael Chen", avatar: null },
                 type: "text",
+                attachmentUrl: null,
+                attachmentName: null,
+                attachmentType: null,
             };
             setMessages(prev => [...prev, newMsg]);
             setNewMessage("");
@@ -298,8 +363,7 @@ export default function ChatUI() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    bookingId: activeChat,
-                    receiverId: activeConvo.otherId,
+                    chatId: activeChat,
                     content: newMessage.trim(),
                 }),
             });
@@ -307,7 +371,6 @@ export default function ChatUI() {
             if (data.message) {
                 setMessages((prev) => [...prev, data.message]);
                 setNewMessage("");
-                // Update last message in conversation list
                 setConversations((prev) =>
                     prev.map((c) =>
                         c.id === activeChat
@@ -321,8 +384,104 @@ export default function ChatUI() {
         }
     }
 
+    async function sendFileMessage() {
+        if (!selectedFile || !activeChat) return;
+
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('chatId', activeChat);
+            formData.append('content', newMessage.trim());
+
+            const res = await fetch("/api/messages/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (data.message) {
+                setMessages((prev) => [...prev, data.message]);
+                setNewMessage("");
+                setSelectedFile(null);
+                setFilePreview(null);
+                setConversations((prev) =>
+                    prev.map((c) =>
+                        c.id === activeChat
+                            ? { ...c, lastMessage: data.message.attachmentName ? `📎 ${data.message.attachmentName}` : newMessage.trim(), date: "Now" }
+                            : c
+                    )
+                );
+            }
+        } catch {
+            alert("Failed to send file");
+        } finally {
+            setIsUploading(false);
+        }
+    }
+
+    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File size must be less than 10MB");
+            return;
+        }
+
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain', 'text/csv',
+            'application/zip', 'application/x-zip-compressed',
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+            alert("File type not supported");
+            return;
+        }
+
+        setSelectedFile(file);
+
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFilePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            setFilePreview(null);
+        }
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+
+    function removeSelectedFile() {
+        setSelectedFile(null);
+        setFilePreview(null);
+    }
+
+    function isImage(type: string | null): boolean {
+        return type ? type.startsWith('image/') : false;
+    }
+
+    function getFileSize(type: string | null): React.ReactNode {
+        if (type?.includes('pdf')) return <FileIcon size={20} className="text-red-500" />;
+        if (type?.includes('word') || type?.includes('document')) return <FileIcon size={20} className="text-blue-500" />;
+        if (type?.includes('excel') || type?.includes('sheet')) return <FileIcon size={20} className="text-green-500" />;
+        if (type?.includes('zip')) return <FileIcon size={20} className="text-yellow-500" />;
+        return <FileIcon size={20} className="text-slate-400" />;
+    }
+
     function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === "Enter" && !e.shiftKey) {
+        if (e.key === "Enter") {
             e.preventDefault();
             sendMessage();
         }
@@ -334,7 +493,6 @@ export default function ChatUI() {
 
     return (
         <div className="flex bg-slate-50 border-t border-gray-100" style={{ height: "calc(100vh - 64px)" }}>
-
             {/* LEFT SIDEBAR */}
             <div className={`${activeChat ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 bg-white border-r border-gray-100 flex-col shrink-0`}>
                 <div className="p-6 pb-4">
@@ -524,6 +682,39 @@ export default function ChatUI() {
                                                     : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm"
                                             }`}>
                                                 <p className="text-sm leading-relaxed font-medium">{msg.content}</p>
+                                                {/* Attachment display */}
+                                                {msg.attachmentUrl && (
+                                                    <div className="mt-2">
+                                                        {isImage(msg.attachmentType) ? (
+                                                            <button
+                                                                onClick={() => setPreviewImage(msg.attachmentUrl!)}
+                                                                className="block rounded-lg overflow-hidden cursor-pointer hover:opacity-95 transition-opacity"
+                                                            >
+                                                                <img
+                                                                    src={msg.attachmentUrl}
+                                                                    alt={msg.attachmentName || "Attachment"}
+                                                                    className="max-w-full max-h-64 object-cover rounded-lg"
+                                                                />
+                                                            </button>
+                                                        ) : (
+                                                            <a
+                                                                href={msg.attachmentUrl}
+                                                                download={msg.attachmentName || undefined}
+                                                                className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
+                                                                    isMe
+                                                                        ? "bg-teal-700/50 border-teal-500 hover:bg-teal-700"
+                                                                        : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                                                                }`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                {getFileSize(msg.attachmentType)}
+                                                                <span className="text-sm font-medium truncate flex-1">{msg.attachmentName}</span>
+                                                                <Download size={16} className={isMe ? "opacity-70" : "text-slate-400"} />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <p className={`text-xs mt-2 font-bold uppercase tracking-tighter opacity-70 ${isMe ? "text-right" : "text-slate-400"}`}>
                                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                 </p>
@@ -537,20 +728,78 @@ export default function ChatUI() {
 
                         {/* INPUT */}
                         <div className="p-4 bg-white border-t border-slate-100 pb-8 md:pb-6">
+                            {/* File preview area */}
+                            {selectedFile && (
+                                <div className="mb-3 max-w-4xl mx-auto">
+                                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-center gap-3">
+                                        {filePreview ? (
+                                            <div className="relative">
+                                                <img src={filePreview} alt="Preview" className="w-16 h-16 rounded-lg object-cover" />
+                                                <button
+                                                    onClick={removeSelectedFile}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                {getFileSize(selectedFile.type)}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-slate-700 truncate">{selectedFile.name}</p>
+                                                    <p className="text-xs text-slate-400">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                                                </div>
+                                                <button
+                                                    onClick={removeSelectedFile}
+                                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-3 max-w-4xl mx-auto w-full">
+                                {/* File input (hidden) */}
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                                />
+                                
+                                {/* Attachment button */}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-12 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl flex items-center justify-center transition-all shrink-0 text-slate-400 hover:text-slate-600"
+                                    title="Attach file"
+                                >
+                                    <Paperclip size={18} />
+                                </button>
+                                
                                 <input
                                     type="text"
                                     placeholder="Type a message..."
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     onKeyDown={onKeyDown}
-                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium"
+                                    disabled={isUploading}
+                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium disabled:opacity-50"
                                 />
                                 <button
                                     onClick={sendMessage}
-                                    className="w-12 h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-teal-600/20 shrink-0 active:scale-95"
+                                    disabled={isUploading || (!newMessage.trim() && !selectedFile)}
+                                    className="w-12 h-12 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-teal-600/20 shrink-0 active:scale-95 disabled:active:scale-100"
                                 >
-                                    <Send size={18} className="ml-0.5" />
+                                    {isUploading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Send size={18} className="ml-0.5" />
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -564,6 +813,28 @@ export default function ChatUI() {
                     </div>
                 )}
             </div>
+
+            {/* Image Preview Modal */}
+            {previewImage && (
+                <div
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-4xl max-h-[90vh]">
+                        <button
+                            onClick={() => setPreviewImage(null)}
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                        <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Mock Payment Dialog */}
             {showPaymentDialog && pendingPaymentMsg && (

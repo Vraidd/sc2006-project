@@ -1,10 +1,9 @@
-// app/api/messages/route.ts
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 
-// GET - Fetch messages by bookingId
+// GET - Fetch messages by chatId
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -21,40 +20,30 @@ export async function GET(request: Request) {
 
     const userId = (payload as { userId: string }).userId;
     const { searchParams } = new URL(request.url);
-    const bookingId = searchParams.get('bookingId');
+    const chatId = searchParams.get('chatId');
 
-    if (!bookingId) {
-      return NextResponse.json({ error: 'bookingId is required' }, { status: 400 });
+    if (!chatId) {
+      return NextResponse.json({ error: 'chatId is required' }, { status: 400 });
     }
 
-    // Verify user has access to this booking
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Verify user has access to this chat
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
       select: { ownerId: true, caregiverId: true },
     });
 
-    if (!booking || (booking.ownerId !== userId && booking.caregiverId !== userId)) {
+    if (!chat || (chat.ownerId !== userId && chat.caregiverId !== userId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Fetch messages for this booking
+    // Fetch messages for this chat
     const messages = await prisma.message.findMany({
-      where: { bookingId },
+      where: { chatId },
       include: {
         sender: { select: { id: true, name: true, avatar: true } },
-        receiver: { select: { id: true, name: true, avatar: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
-
-    // Mark messages as read for the current user
-    // await prisma.message.updateMany({
-    //   where: {
-    //     bookingId,
-    //     receiverId: userId,
-    //   },
-    //   data: { read: true },
-    // });
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -79,36 +68,46 @@ export async function POST(request: Request) {
     }
 
     const userId = (payload as { userId: string }).userId;
-    const { bookingId, receiverId, content } = await request.json();
+    const { chatId, content, attachmentUrl, attachmentName, attachmentType } = await request.json();
 
-    if (!bookingId || !receiverId || !content) {
+    if (!chatId || !content) {
       return NextResponse.json(
-        { error: 'bookingId, receiverId, and content are required' },
+        { error: 'chatId and content are required' },
         { status: 400 }
       );
     }
 
-    // Verify booking exists and user is part of it
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Verify chat exists and user is part of it
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
       select: { ownerId: true, caregiverId: true },
     });
 
-    if (!booking || (booking.ownerId !== userId && booking.caregiverId !== userId)) {
+    if (!chat || (chat.ownerId !== userId && chat.caregiverId !== userId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // Create message
     const message = await prisma.message.create({
       data: {
+        chatId,
         senderId: userId,
-        receiverId,
-        bookingId,
         content,
+        attachmentUrl: attachmentUrl || null,
+        attachmentName: attachmentName || null,
+        attachmentType: attachmentType || null,
       },
       include: {
         sender: { select: { id: true, name: true, avatar: true } },
-        receiver: { select: { id: true, name: true, avatar: true } },
+      },
+    });
+
+    // Update chat's lastMessage and updatedAt
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: {
+        lastMessage: content,
+        updatedAt: new Date(),
       },
     });
 

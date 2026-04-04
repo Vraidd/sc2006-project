@@ -3,11 +3,14 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ForgotPassword() {
     const router = useRouter();
+    const { forgotPassword } = useAuth();
     const [email, setEmail] = useState("");
     const [isSent, setIsSent] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
     async function send(e: React.FormEvent<HTMLFormElement>) {
@@ -17,24 +20,17 @@ export default function ForgotPassword() {
             return;
         }
 
+        setIsLoading(true);
+        setErrorMsg("");
+
         try {
-            
-            const res = await fetch("/api/", { // set API to forgot password
-                method:"POST",
-                headers: {"Content-Type":"application/json"},
-                body: JSON.stringify({email})
-            }); 
-
-            const data = res.json();
-            
-            if (res.ok) {
-                setIsSent(true);
-            } else {
-
-            }
-        } catch (err) {
+            await forgotPassword(email);
+            setIsSent(true);
+        } catch (err: any) {
             console.error("Error", err);
-            setErrorMsg(`An unexpected error occurred. Please try again later.`);
+            setErrorMsg(err.message || "An unexpected error occurred. Please try again later.");
+        } finally {
+            setIsLoading(false);
         }
     }
     
@@ -67,8 +63,12 @@ export default function ForgotPassword() {
                                     placeholder="name@example.com"
                                 />
                             </div>
-                            <button className="w-full bg-teal-600 text-white font-bold py-3 rounded-xl hover:bg-teal-700 transition-shadow shadow-md">
-                                Send Recovery Link
+                            <button 
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full bg-teal-600 text-white font-bold py-3 rounded-xl hover:bg-teal-700 transition-shadow shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? "Sending..." : "Send Recovery Link"}
                             </button>
                         </form>
                     ) : (

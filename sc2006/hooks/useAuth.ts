@@ -61,6 +61,46 @@ export function useAuth() {
     }
   }
 
+  async function forgotPassword(email: string) {
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Failed to send reset email');
+      }
+
+      return data;
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  async function resetPassword(token: string, newPassword: string) {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Failed to reset password');
+      }
+
+      return data;
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
   async function logout() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -101,6 +141,8 @@ export function useAuth() {
     loading,
     login,
     logout,
+    forgotPassword,
+    resetPassword,
     refreshToken,
     //withAuthRefresh, // Use for protected API calls
     isAuthenticated: !!user,

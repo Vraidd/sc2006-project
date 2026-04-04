@@ -1,10 +1,11 @@
 "use client"
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from 'next/navigation'; 
+import { useParams, useRouter } from 'next/navigation'; 
 import Navbar from "../../../components/Navbar";
 import BookingModal from "../BookingModal";
 import { useUsers } from "@/hooks/useUsers";
 import { usePets } from "@/hooks/usePets";
+import { useAuth } from "@/hooks/useAuth";
 import { 
     ChevronLeft, 
     ShieldCheck, 
@@ -243,13 +244,16 @@ const serviceDetails = [
 
 export default function caregiverProfile() {
     const params = useParams();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState("About");
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [isMessaging, setIsMessaging] = useState(false);
     const caregiverId = params.id as string;
     const [caregiver, setCaregiver] = useState<caregiver | null>(null);
     const [loading, setLoading] = useState(true);
     const { fetchPets } = usePets();
     const [pets, setPets] = useState<Pet[]>([]);
+    const { user } = useAuth();
     
     const { fetchCaregiver } = useUsers();
     const loadCaregiver = useCallback(async () => {
@@ -268,10 +272,35 @@ export default function caregiverProfile() {
     }, [caregiverId, fetchCaregiver]);
 
     useEffect(() => {
-    loadCaregiver();
+        loadCaregiver();
     }, []);
-  if (loading) return <div className="p-10">Loading profile...</div>;
-  if (!caregiver) return <div className="p-10">Caregiver not found</div>;
+
+    async function handleMessageClick() {
+        if (!user || isMessaging) return;
+        setIsMessaging(true);
+        try {
+            // Fetch or create a chat via the API
+            const res = await fetch(
+                `/api/chats?ownerId=${user.id}&caregiverId=${caregiverId}`
+            );
+            const data = await res.json();
+
+            if (data.chatId) {
+                // Redirect to messages page with the chatId
+                router.push(`/owner/messages?chatId=${data.chatId}`);
+            } else {
+                alert(data.error || 'Failed to start chat');
+            }
+        } catch (err) {
+            console.error('Failed to start chat:', err);
+            alert('Failed to start chat');
+        } finally {
+            setIsMessaging(false);
+        }
+    }
+
+    if (loading) return <div className="p-10">Loading profile...</div>;
+    if (!caregiver) return <div className="p-10">Caregiver not found</div>;
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />
@@ -326,12 +355,13 @@ export default function caregiverProfile() {
                                 >
                                     <Calendar size={16} /> Book Now
                                 </button>
-                                <a 
-                                    href="/owner/messages"
-                                    className="w-full bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-xs py-4 px-4 rounded-2xl transition-all border border-white/20 flex justify-center items-center gap-2 active:scale-95"
+                                <button 
+                                    onClick={handleMessageClick}
+                                    disabled={isMessaging}
+                                    className="w-full bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-widest text-xs py-4 px-4 rounded-2xl transition-all border border-white/20 flex justify-center items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <MessageCircle size={16} /> Message
-                                </a>
+                                    <MessageCircle size={16} /> {isMessaging ? "Starting Chat..." : "Message"}
+                                </button>
                             </div>
                         </div>
                     </div>

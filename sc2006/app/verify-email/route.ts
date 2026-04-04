@@ -46,7 +46,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to login/dashboard
-    await sendWelcomeEmail(user.email, user.name)
+    try {
+      await sendWelcomeEmail(user.email, user.name)
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError)
+    }
     return NextResponse.redirect(new URL('/', request.url))
     
   } catch (error) {

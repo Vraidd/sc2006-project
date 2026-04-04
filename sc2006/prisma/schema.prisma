@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
@@ -31,6 +28,8 @@ model User {
   updatedAt               DateTime      @updatedAt @map("updated_at")
   verificationToken       String?       @unique
   verificationTokenExpiry DateTime?
+  resetPasswordToken      String?       @unique
+  resetPasswordExpiry     DateTime?
 
   // Relations
   pets                   Pet[]
@@ -40,11 +39,11 @@ model User {
   sentReviews            Review[]                @relation("ReviewSender")
   receivedReviews        Review[]                @relation("ReviewReceiver")
   sentMessages           Message[]               @relation("MessageSender")
-  receivedMessages       Message[]               @relation("MessageReceiver")
-  messages               Message[]
   notifications          Notification[]
   availability           Availability[]
   availabilityExceptions AvailabilityException[]
+  ownedChats             Chat[]                  @relation("ChatOwner")
+  caregiverChats         Chat[]                  @relation("ChatCaregiver")
 
   @@index([role])
   @@index([latitude, longitude])
@@ -52,24 +51,24 @@ model User {
 }
 
 model CaregiverProfile {
-  id                  String    @id @default(cuid())
+  id                  String        @id @default(cuid())
   name                String
-  user                User      @relation(fields: [id], references: [id], onDelete: Cascade)
-  biography           String?   @db.Text
-  dailyRate           Float     @map("daily_rate")
+  user                User          @relation(fields: [id], references: [id], onDelete: Cascade)
+  biography           String?       @db.Text
+  dailyRate           Float         @map("daily_rate")
   petPreferences      PetType[]
-  dogSizes            DogSize[]  @map("dog_sizes")
+  dogSizes            DogSize[]     @map("dog_sizes")
   services            ServiceType[]
   location            String?
-  experienceYears     Int?      @map("experience_years")
-  isAcceptingRequests Boolean   @default(true) @map("is_accepting_requests")
-  verified            Boolean   @default(false)
-  verificationDoc     String?   @map("verification_doc")
-  averageRating       Float     @default(0) @map("average_rating")
-  totalReviews        Int       @default(0) @map("total_reviews")
-  completedBookings   Int       @default(0) @map("completed_bookings")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  experienceYears     Int?          @map("experience_years")
+  isAcceptingRequests Boolean       @default(true) @map("is_accepting_requests")
+  verified            Boolean       @default(false)
+  verificationDoc     String?       @map("verification_doc")
+  averageRating       Float         @default(0) @map("average_rating")
+  totalReviews        Int           @default(0) @map("total_reviews")
+  completedBookings   Int           @default(0) @map("completed_bookings")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
 
   @@map("caregiver_profiles")
 }
@@ -111,12 +110,11 @@ model Booking {
   updatedAt           DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  owner     User      @relation("OwnerBookings", fields: [ownerId], references: [id])
-  caregiver User      @relation("CaregiverBookings", fields: [caregiverId], references: [id])
-  pet       Pet       @relation(fields: [petId], references: [id])
+  owner     User     @relation("OwnerBookings", fields: [ownerId], references: [id])
+  caregiver User     @relation("CaregiverBookings", fields: [caregiverId], references: [id])
+  pet       Pet      @relation(fields: [petId], references: [id])
   review    Review?
   payment   Payment?
-  messages  Message[]
 
   @@unique([ownerId, caregiverId, petId, startDate])
   @@index([caregiverId, status])
@@ -174,28 +172,38 @@ model AvailabilityException {
 }
 
 model Chat {
-  senderId   String @map("sender_id")
-  receiverId String @map("receiver_id")
+  id          String   @id @default(cuid())
+  ownerId     String   @map("owner_id")
+  caregiverId String   @map("caregiver_id")
+  lastMessage String?  @map("last_message")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@unique([senderId, receiverId])
-  @@index([senderId, receiverId])
+  owner     User      @relation("ChatOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  caregiver User      @relation("ChatCaregiver", fields: [caregiverId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@unique([ownerId, caregiverId])
+  @@index([ownerId, caregiverId])
+  @@index([updatedAt])
+  @@map("chats")
 }
 
 model Message {
-  id         String   @id @default(cuid())
-  senderId   String   @map("sender_id")
-  receiverId String   @map("receiver_id")
-  content    String   @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  chatId         String   @map("chat_id")
+  senderId       String   @map("sender_id")
+  content        String   @db.Text
+  attachmentUrl  String?  @map("attachment_url")
+  attachmentName String?  @map("attachment_name")
+  attachmentType String?  @map("attachment_type")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
-  receiver  User     @relation("MessageReceiver", fields: [receiverId], references: [id])
-  user      User?    @relation(fields: [userId], references: [id])
-  userId    String?
-  booking   Booking? @relation(fields: [bookingId], references: [id])
-  bookingId String?
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation("MessageSender", fields: [senderId], references: [id])
 
-  @@index([senderId, receiverId])
+  @@index([chatId])
+  @@index([senderId])
   @@index([createdAt])
   @@map("messages")
 }
@@ -206,7 +214,7 @@ model Notification {
   type      NotificationType
   title     String
   message   String           @db.Text
-  data      Json? // Store additional data as JSON
+  data      Json?
   read      Boolean          @default(false)
   createdAt DateTime         @default(now()) @map("created_at")
 
@@ -234,7 +242,6 @@ model Payment {
   @@map("payments")
 }
 
-// Enums
 enum Role {
   OWNER
   CAREGIVER
