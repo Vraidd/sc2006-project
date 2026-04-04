@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useBooking } from "@/hooks/useBooking";
 import { useAuth } from "@/hooks/useAuth";
 import ReviewModal from "./ReviewModal"; // Import the new modal here
+import { useToast } from "@/app/context/ToastContext";
 import { 
     Clock, 
     Calendar, 
@@ -20,53 +21,58 @@ import {
 } from "lucide-react";
 
 // // DUMMY DATA - Added a "past" booking to test the review engine
-// const dummyBookings = [
-//     {
-//         id: 1,
-//         petName: "Dawg",
-//         caretakerName: "Sarah Chen",
-//         dates: "Feb 16 - Feb 19, 2026",
-//         location: "In Home",
-//         price: 260,
-//         status: "Active", 
-//         type: "active"
-//     },
-//     {
-//         id: 2,
-//         petName: "Dawg",
-//         caretakerName: "Jason Lim",
-//         dates: "Mar 05 - Mar 07, 2026",
-//         location: "Caretaker's Home",
-//         price: 150,
-//         status: "Confirmed",
-//         type: "active"
-//     },
-//     {
-//         id: 3,
-//         petName: "Dawg",
-//         caretakerName: "Lisa Wong",
-//         dates: "Jan 10 - Jan 12, 2026",
-//         location: "Caretaker's Home",
-//         price: 225,
-//         status: "Completed",
-//         type: "past"
-//     }
-// ];
+const dummyBookings = [
+    {
+        id: 1,
+        petName: "Dawg",
+        caretakerName: "Sarah Chen",
+        dates: "Feb 16 - Feb 19, 2026",
+        location: "In Home",
+        price: 260,
+        status: "Active", 
+        type: "active"
+    },
+    {
+        id: 2,
+        petName: "Dawg",
+        caretakerName: "Jason Lim",
+        dates: "Mar 05 - Mar 07, 2026",
+        location: "Caretaker's Home",
+        price: 150,
+        status: "Confirmed",
+        type: "active"
+    },
+    {
+        id: 3,
+        petName: "Dawg",
+        caretakerName: "Lisa Wong",
+        dates: "Jan 10 - Jan 12, 2026",
+        location: "Caretaker's Home",
+        price: 225,
+        status: "Completed",
+        type: "past"
+    }
+];
 
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
     const [reviewCaregiver, setReviewCaregiver] = useState<string | null>(null);
     const [bookings, setBookings] = useState<any[]>([]);
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
+    const [refundLoading, setRefundLoading] = useState<string | null>(null);
+    const [showRefundConfirm, setShowRefundConfirm] = useState<string | null>(null);
     const { user } = useAuth();
     const { fetchBooking, loading, error } = useBooking();
+    const { fireToast } = useToast();
 
     useEffect(() => {
         if (user?.id) {
             loadBookings();
-        }}, [user]);
+        }
+    }, [user]);
 
     const loadBookings = async () => {
+        setBookings(dummyBookings);
         if (!user?.id) return;
         const data = await fetchBooking({ownerId: user.id});
         console.log("Fetched Bookings:", data);
@@ -108,6 +114,19 @@ export default function Bookings() {
         } finally {
             setPaymentLoading(null);
         }
+    };
+
+    const handleRefundRequest = (bookingId: string) => {
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking) {
+            // Simulate refund request submission
+            fireToast(
+                "info", 
+                "Refund Request Submitted", 
+                `Your refund request for ${booking.petName} has been submitted. An administrator will review it shortly.`
+            );
+        }
+        setShowRefundConfirm(null);
     };
 
     return (
@@ -205,7 +224,7 @@ export default function Bookings() {
                                     )}
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row gap-3 w-full md:w-auto">
+                                <div className="flex flex-col gap-3 w-full md:w-auto">
                                     <Link 
                                         href={`/owner/messages`}
                                         className="flex-1 px-6 py-3.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 active:scale-95"
@@ -223,12 +242,20 @@ export default function Bookings() {
                                     )}
 
                                     {booking.status === "Completed" && (
-                                        <Link 
-                                            href="/owner/rating"
-                                            className="flex-1 px-8 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
-                                        >
-                                            <Star size={16} fill="currentColor" /> Leave Review
-                                        </Link>
+                                        <>
+                                            <button 
+                                                onClick={() => setShowRefundConfirm(booking.id)}
+                                                className="flex-1 px-6 py-3.5 text-red-600 border border-red-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
+                                            >
+                                                <AlertCircle size={16} /> Request Refund
+                                            </button>
+                                            <Link 
+                                                href="/owner/rating"
+                                                className="flex-1 px-8 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
+                                            >
+                                                <Star size={16} fill="currentColor" /> Leave Review
+                                            </Link>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -254,6 +281,44 @@ export default function Bookings() {
                     caregiverName={reviewCaregiver} 
                     onClose={() => setReviewCaregiver(null)} 
                 />
+            )}
+
+            {/* REFUND CONFIRMATION MODAL */}
+            {showRefundConfirm && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 md:p-6" onClick={() => setShowRefundConfirm(null)}>
+                    <div className="bg-white rounded-[24px] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 shrink-0">
+                            <h2 className="font-bold text-xl text-slate-900">Request Refund</h2>
+                            <p className="text-sm font-semibold text-slate-500">Are you sure you want to request a refund for this booking?</p>
+                        </div>
+                        
+                        <div className="p-6 space-y-4 overflow-y-auto">
+                            <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+                                <div className="flex items-center gap-3">
+                                    <AlertCircle size={24} className="text-red-600" />
+                                    <div>
+                                        <p className="text-sm font-medium text-red-700">Refund Request</p>
+                                        <p className="text-sm text-red-600">This will submit a refund request to the administrator for review.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <p className="text-sm font-medium text-slate-500">Once submitted, the administrator will review your request and notify you of their decision.</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0 mt-auto">
+                            <button onClick={() => setShowRefundConfirm(null)} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+                            <button 
+                                onClick={() => handleRefundRequest(showRefundConfirm)}
+                                className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md"
+                            >
+                                Submit Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
