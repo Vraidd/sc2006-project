@@ -25,7 +25,7 @@ type IncidentRecord = {
   bookingId: string;
   reporterId: string;
   caregiverId: string;
-  type: "SAFETY" | "UNRESPONSIVE" | "OTHER";
+  type: "SAFETY" | "UNRESPONSIVE" | "REFUND" | "OTHER";
   title: string;
   priority: "LOW" | "MEDIUM" | "HIGH";
   status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";

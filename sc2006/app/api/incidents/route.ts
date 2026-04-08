@@ -7,18 +7,20 @@ import { mkdir, writeFile, unlink } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 
-const VALID_TYPES = ['SAFETY', 'UNRESPONSIVE', 'OTHER'] as const;
+const VALID_TYPES = ['SAFETY', 'UNRESPONSIVE', 'REFUND', 'OTHER'] as const;
 type IncidentType = typeof VALID_TYPES[number];
 
 const INCIDENT_TYPE_LABELS: Record<IncidentType, string> = {
   SAFETY: 'Safety Concern',
   UNRESPONSIVE: 'Caretaker Unresponsive',
+  REFUND: 'Refund Request',
   OTHER: 'Other Issue',
 };
 
 const INCIDENT_PRIORITY_BY_TYPE: Record<IncidentType, 'LOW' | 'MEDIUM' | 'HIGH'> = {
   SAFETY: 'HIGH',
   UNRESPONSIVE: 'MEDIUM',
+  REFUND: 'MEDIUM',
   OTHER: 'LOW',
 };
 

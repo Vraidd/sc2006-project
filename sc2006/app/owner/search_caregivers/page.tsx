@@ -37,6 +37,13 @@ interface Caregiver {
   }>;
 }
 
+interface OneMapOption {
+    label: string;
+    value: string;
+    lat: number;
+    lng: number;
+}
+
 const PET_TYPE_OPTIONS = [
         { label: 'Dogs', value: 'DOG' },
         { label: 'Cats', value: 'CAT' },
@@ -92,6 +99,8 @@ export default function SearchCaregivers() {
     const [minYearsExperience, setMinYearsExperience] = useState(0);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [searchTrigger, setSearchTrigger] = useState(0);
+    const [locationOptions, setLocationOptions] = useState<OneMapOption[]>([]);
+    const [locationSearchLoading, setLocationSearchLoading] = useState(false);
 
     useEffect(() => {
     const loadCaregivers = async () => {
@@ -108,6 +117,28 @@ export default function SearchCaregivers() {
 
         loadCaregivers();
     }, []);
+
+    useEffect(() => {
+        const id = setTimeout(() => {
+            const query = locationInput.trim();
+            if (query.length < 2) {
+                setLocationOptions([]);
+                return;
+            }
+
+            setLocationSearchLoading(true);
+            fetch(`/api/onemap/search?q=${encodeURIComponent(query)}`)
+                .then((r) => r.json())
+                .then((data) => {
+                    const options = Array.isArray(data?.options) ? data.options : [];
+                    setLocationOptions(options);
+                })
+                .catch(() => setLocationOptions([]))
+                .finally(() => setLocationSearchLoading(false));
+        }, 300);
+
+        return () => clearTimeout(id);
+    }, [locationInput]);
 
     const getDistance = (p1: number[], p2: number[]) => {
         const toRad = (deg: number) => deg * (Math.PI / 180);
@@ -140,6 +171,12 @@ export default function SearchCaregivers() {
         return true;
         });
     }, [allCaregivers, locationInput, locationCoords, minDistance, petTypes, minYearsExperience, searchTrigger]);
+
+    const topRatedCaregivers = useMemo(() => {
+        return [...getFilteredCaregivers]
+            .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+            .slice(0, 3);
+    }, [getFilteredCaregivers]);
 
     const handleMapClick = (coords: [number, number]) => {
         const lat = coords[0].toFixed(4);
@@ -174,12 +211,21 @@ export default function SearchCaregivers() {
     const handleSelectRegion = (region: string) => {
         setLocationInput(region);
         setLocationCoords(SG_REGIONS[region] as [number, number]);
+        setLocationOptions([]);
+        setShowLocationDropdown(false);
+    };
+
+    const handleSelectLocationOption = (option: OneMapOption) => {
+        setLocationInput(option.label);
+        setLocationCoords([option.lat, option.lng]);
+        setLocationOptions([]);
         setShowLocationDropdown(false);
     };
 
     const handleSelectCaregiver = (cg: any) => {
         setLocationInput(cg.name);
         if (cg.locationCoords) setLocationCoords(cg.locationCoords);
+        setLocationOptions([]);
         setShowLocationDropdown(false);
     };
 
@@ -202,13 +248,13 @@ export default function SearchCaregivers() {
                     </p>
 
                     {/* WARNING: COMMENT THIS OUT WHEN EDITING OTHER THINGS CAUSE WE DON'T WANNA SPAM TOO MANY API CALLS TO data.gov.sg */}
-                    {/* <MapComponent
+                    <MapComponent
                     userLocation={locationCoords}
                     onMapClick={handleMapClick}
                     caregivers={getFilteredCaregivers}
                     searchRadius={minDistance}
                     minDistance={minDistance}
-                    /> */}
+                    />
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 mb-12 flex flex-col lg:flex-row gap-5 items-center">
@@ -224,6 +270,7 @@ export default function SearchCaregivers() {
                             value={locationInput}
                             onChange={(e) => {
                                 setLocationInput(e.target.value);
+                                setLocationCoords([0, 0]);
                                 setShowLocationDropdown(true);
                             }}
                             onFocus={() => setShowLocationDropdown(true)}
@@ -269,7 +316,7 @@ export default function SearchCaregivers() {
                                     <>
                                         <div className="mb-2">
                                             <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Top Caregivers</div>
-                                            {getFilteredCaregivers.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 3).map(cg => (
+                                            {topRatedCaregivers.map(cg => (
                                                 <div key={`top-cg-${cg.id}`} onClick={() => handleSelectCaregiver(cg)} className="px-5 py-3 hover:bg-slate-50 cursor-pointer text-slate-700 font-bold transition-colors flex items-center gap-3">
                                                     <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
                                                         <User size={14} />
@@ -296,6 +343,27 @@ export default function SearchCaregivers() {
                                 ) : (
                                     /* IF INPUT HAS TEXT: Show Filtered Results */
                                     <>
+                                        {/* LOCATION SUGGESTIONS */}
+                                        <div className="mb-2">
+                                            <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Locations</div>
+                                            {locationSearchLoading ? (
+                                                <div className="px-5 py-3 text-slate-500 text-sm">Searching locations...</div>
+                                            ) : locationOptions.length > 0 ? (
+                                                locationOptions.slice(0, 8).map((option) => (
+                                                    <div
+                                                        key={`loc-${option.value}-${option.lat}-${option.lng}`}
+                                                        onClick={() => handleSelectLocationOption(option)}
+                                                        className="px-5 py-3 hover:bg-slate-50 cursor-pointer text-slate-700 font-medium transition-colors flex items-center gap-3"
+                                                    >
+                                                        <MapPin size={16} className="text-slate-400 opacity-70" />
+                                                        <span className="truncate">{option.label}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-5 py-3 text-slate-400 text-sm">No locations found.</div>
+                                            )}
+                                        </div>
+
                                         {/* CAREGIVER SUGGESTIONS */}
                                         {getFilteredCaregivers.length > 0 && (
                                             <div className="mb-2">
@@ -310,30 +378,6 @@ export default function SearchCaregivers() {
                                                 ))}
                                             </div>
                                         )}
-
-                                        {/* LOCATION SUGGESTIONS */}
-                                        {/* {matchingRegions.length > 0 && (
-                                            <div>
-                                                <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Locations</div>
-                                                {matchingRegions.map((region) => (
-                                                    <div 
-                                                        key={region}
-                                                        onClick={() => handleSelectRegion(region)}
-                                                        className="px-5 py-3 hover:bg-slate-50 cursor-pointer text-slate-700 font-medium transition-colors flex items-center gap-3"
-                                                    >
-                                                        <MapPin size={16} className="text-slate-400 opacity-50" />
-                                                        {region}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )} */}
-
-                                        {/* NO RESULTS FALLBACK */}
-                                        {/* {matchingRegions.length === 0 && matchingCaregivers.length === 0 && (
-                                            <div className="px-5 py-4 text-slate-400 text-sm text-center">
-                                                No locations or caregivers found matching "{locationInput}"
-                                            </div>
-                                        )} */}
                                     </>
                                 )}
                             </div>

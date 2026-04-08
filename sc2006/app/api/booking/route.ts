@@ -5,7 +5,20 @@ import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 import { bookingSchema } from '@/app/lib/validation';
 import { z } from 'zod';
+import { Prisma } from '@/app/generated/prisma/client';
 import { requestPaymentInChat } from '@/app/lib/paymentRequestChat';
+
+function toStartOfDay(date: Date | string) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toEndOfDay(date: Date | string) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
 
 function calculateBookingAmount(startDate: Date | string, endDate: Date | string, dailyRate?: number | null) {
   const start = new Date(startDate);
@@ -62,9 +75,10 @@ export async function GET(request: Request) {
 
     // Auto-transition overdue bookings to COMPLETED, and CONFIRMED bookings to IN_PROGRESS when active.
     const now = new Date();
-    const toComplete = bookings.filter(
-      (b) => (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') && new Date(b.endDate) < now
-    );
+    const toComplete = bookings.filter((b) => {
+      if (b.status !== 'CONFIRMED' && b.status !== 'IN_PROGRESS') return false;
+      return now > toEndOfDay(b.endDate);
+    });
     if (toComplete.length > 0) {
       await prisma.booking.updateMany({
         where: { id: { in: toComplete.map((b) => b.id) } },
@@ -92,9 +106,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const toUpdate = bookings.filter(
-      (b) => b.status === 'CONFIRMED' && new Date(b.startDate) <= now && new Date(b.endDate) >= now
-    );
+    const toUpdate = bookings.filter((b) => {
+      if (b.status !== 'CONFIRMED') return false;
+      return now >= toStartOfDay(b.startDate) && now <= toEndOfDay(b.endDate);
+    });
     if (toUpdate.length > 0) {
       await prisma.booking.updateMany({
         where: { id: { in: toUpdate.map((b) => b.id) } },
@@ -165,6 +180,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Only CONFIRMED or IN_PROGRESS bookings can be completed' }, { status: 400 });
     }
 
+    if (status === 'COMPLETED' && new Date() <= toEndOfDay(booking.endDate)) {
+      return NextResponse.json(
+        { error: 'Booking cannot be completed yet', message: 'Booking can only be completed after the end date has passed' },
+        { status: 400 }
+      );
+    }
+
     // If caregiver is accepting (status = CONFIRMED), check for date conflicts
     if (status === 'CONFIRMED') {
       const caregiverConflict = await prisma.booking.findFirst({
@@ -174,8 +196,8 @@ export async function PATCH(request: Request) {
           status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
           OR: [
             {
-              startDate: { lt: booking.endDate },
-              endDate: { gt: booking.startDate },
+              startDate: { lte: booking.endDate },
+              endDate: { gte: booking.startDate },
             },
           ],
         },
@@ -218,8 +240,8 @@ export async function PATCH(request: Request) {
           caregiverId: booking.caregiverId,
           status: 'PENDING',
           AND: [
-            { startDate: { lt: booking.endDate } },
-            { endDate: { gt: booking.startDate } },
+            { startDate: { lte: booking.endDate } },
+            { endDate: { gte: booking.startDate } },
           ],
         },
         data: { status: 'DECLINED' },
@@ -258,9 +280,9 @@ export async function POST(request: Request) {
     const startDate = new Date(validatedData.startDate);
     const endDate = new Date(validatedData.endDate);
 
-    if (endDate <= startDate) {
+    if (endDate < startDate) {
       return NextResponse.json(
-        { error: 'Validation failed', message: 'End date must be after start date' },
+        { error: 'Validation failed', message: 'End date cannot be before start date' },
         { status: 400 }
       );
     }
@@ -309,12 +331,13 @@ export async function POST(request: Request) {
         ownerId: userId,
         caregiverId: validatedData.caregiverId,
         petId: validatedData.petId,
+        status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
         OR: [
           {
             // New booking starts before existing booking ends
-            startDate: { lt: endDate },
+            startDate: { lte: endDate },
             // New booking ends after existing booking starts
-            endDate: { gt: startDate },
+            endDate: { gte: startDate },
           },
         ],
       },
@@ -334,8 +357,8 @@ export async function POST(request: Request) {
         status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
         OR: [
           {
-            startDate: { lt: endDate },
-            endDate: { gt: startDate },
+            startDate: { lte: endDate },
+            endDate: { gte: startDate },
           },
         ],
       },
@@ -348,7 +371,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const days = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
     const totalPrice = validatedData.totalPrice ?? (caregiver.dailyRate ?? 0) * days;
 
     const booking = await prisma.booking.create({
@@ -375,6 +398,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Validation failed', field: firstError.path[0], message: firstError.message },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        {
+          error: 'Booking conflict',
+          message: 'A booking already exists for this start date. Please choose another date or resolve the existing booking first.',
+        },
+        { status: 409 }
       );
     }
 

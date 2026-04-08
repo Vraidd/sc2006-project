@@ -60,6 +60,49 @@ const categoryToEnum: Record<string, string> = {
     Fish: 'FISH',
 };
 
+function startOfDay(date: Date | string) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function endOfDay(date: Date | string) {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
+}
+
+function countInclusiveDays(start: Date, end: Date) {
+    const msPerDay = 1000 * 60 * 60 * 24;
+    return Math.max(0, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+}
+
+function countOverlappingDays(
+    requestedStart: Date,
+    requestedEnd: Date,
+    bookings: Array<{ startDate: string; endDate: string; status: string }>
+) {
+    let overlapDays = 0;
+
+    for (const booking of bookings) {
+        const status = String(booking.status ?? '').toUpperCase();
+        if (status !== 'CONFIRMED' && status !== 'IN_PROGRESS') {
+            continue;
+        }
+
+        const bookingStart = startOfDay(booking.startDate);
+        const bookingEnd = endOfDay(booking.endDate);
+        const overlapStart = new Date(Math.max(requestedStart.getTime(), bookingStart.getTime()));
+        const overlapEnd = new Date(Math.min(requestedEnd.getTime(), bookingEnd.getTime()));
+
+        if (overlapStart <= overlapEnd) {
+            overlapDays += countInclusiveDays(startOfDay(overlapStart), startOfDay(overlapEnd));
+        }
+    }
+
+    return overlapDays;
+}
+
 export default function Dashboard() {
     const { user, loading: authLoading } = useAuth();
     const [selectedPet, setSelectedPet] = useState("");
@@ -134,6 +177,9 @@ export default function Dashboard() {
             imageUrl: c.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(c.name ?? c.id)}`,
             petsHandled: (c.petPreferences ?? []).map((p: string) => enumToDisplayName[p]).filter(Boolean),
             bookings: c.user?.caregiverBookings ?? [],
+            availabilityStartDate: c.availabilityStartDate ?? null,
+            availabilityEndDate: c.availabilityEndDate ?? null,
+            availabilityMatchDays: null as number | null,
         }))
         .filter(item => {
             const matchesPet = selectedPet
@@ -159,20 +205,48 @@ export default function Dashboard() {
             }                                                                                                                            
                                                                                                                                         
             if (startDate && endDate) {                                                                                                  
-                const selectedStart = new Date(startDate);                                                                               
-                const selectedEnd = new Date(endDate);
+                const selectedStart = startOfDay(startDate);
+                const selectedEnd = endOfDay(endDate);
+                let effectiveStart = selectedStart;
+                let effectiveEnd = selectedEnd;
 
-                const hasConflict = item.bookings.some((booking: { id: string; startDate: string; endDate: string; status: string }) => {
-                    const bookingStart = new Date(booking.startDate);
-                    const bookingEnd = new Date(booking.endDate);
-                    // Check if booking overlaps with selected period (inclusive of same-day bookings)
-                    return bookingStart <= selectedEnd && bookingEnd >= selectedStart;
-                });
+                if (item.availabilityStartDate && item.availabilityEndDate) {
+                    const caregiverAvailableStart = startOfDay(item.availabilityStartDate);
+                    const caregiverAvailableEnd = endOfDay(item.availabilityEndDate);
 
-                matchesAvailability = !hasConflict;
+                    const overlapStartMs = Math.max(selectedStart.getTime(), caregiverAvailableStart.getTime());
+                    const overlapEndMs = Math.min(selectedEnd.getTime(), caregiverAvailableEnd.getTime());
+
+                    if (overlapStartMs > overlapEndMs) {
+                        item.availabilityMatchDays = 0;
+                        matchesAvailability = false;
+                        return matchesPet && matchesPrice && matchesVerification && matchesExperience && matchesAvailability;
+                    }
+
+                    effectiveStart = new Date(overlapStartMs);
+                    effectiveEnd = new Date(overlapEndMs);
+                }
+
+                const totalRequestedDays = countInclusiveDays(startOfDay(effectiveStart), startOfDay(effectiveEnd));
+                const overlappingDays = countOverlappingDays(effectiveStart, effectiveEnd, item.bookings);
+                const matchedAvailableDays = Math.max(0, totalRequestedDays - overlappingDays);
+
+                item.availabilityMatchDays = matchedAvailableDays;
+                matchesAvailability = matchedAvailableDays > 0;
             }
 
             return matchesPet && matchesPrice && matchesVerification && matchesExperience && matchesAvailability;
+        })
+        .sort((a, b) => {
+            const hasAvailabilityFilter = !!(selectedDates.start || selectedDates.end);
+            if (hasAvailabilityFilter) {
+                const dayDiff = (b.availabilityMatchDays ?? 0) - (a.availabilityMatchDays ?? 0);
+                if (dayDiff !== 0) return dayDiff;
+
+                return (b.rating ?? 0) - (a.rating ?? 0);
+            }
+
+            return 0;
         });
 
     return (

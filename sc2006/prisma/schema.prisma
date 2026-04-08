@@ -144,7 +144,7 @@ model Booking {
   payment   Payment?
   incidents Incident[]
 
-  @@unique([ownerId, caregiverId, petId, startDate])
+  @@index([ownerId, caregiverId, petId, startDate])
   @@index([caregiverId, status])
   @@index([ownerId, status])
   @@index([startDate, endDate])
@@ -393,6 +393,7 @@ enum VerificationAction {
 enum IncidentType {
   SAFETY
   UNRESPONSIVE
+  REFUND
   OTHER
 }
 

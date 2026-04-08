@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
         name: true,
         biography: true,
         dailyRate: true,
+        availabilityStartDate: true,
+        availabilityEndDate: true,
         location: true,
         experienceYears: true,
         verified: true,

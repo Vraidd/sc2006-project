@@ -13,7 +13,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MessageCircle, ChevronLeft, Send, Paperclip, FileIcon, Download, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star } from "lucide-react";
+import { Search, MessageCircle, ChevronLeft, Send, Paperclip, FileIcon, Download, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star, AlertTriangle } from "lucide-react";
 import { useToast } from "../context/ToastContext";
 import { decodePaymentRequestContent, summarizePaymentRequest, PaymentRequestPayload } from "../lib/paymentRequestMessage";
 
@@ -83,6 +83,10 @@ export default function ChatUI() {
     const [processingPayment, setProcessingPayment] = useState(false);
     const [paymentStep, setPaymentStep] = useState<"select" | "pay" | "processing" | "complete">("select");
     const [pendingPaymentMsg, setPendingPaymentMsg] = useState<{id: string; data: NonNullable<Message['paymentData']> } | null>(null);
+    const [reportingChat, setReportingChat] = useState<Conversation | null>(null);
+    const [reportDescription, setReportDescription] = useState("");
+    const [reportAttachment, setReportAttachment] = useState<File | null>(null);
+    const [reportSubmitting, setReportSubmitting] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const { fireToast } = useToast();
@@ -498,6 +502,66 @@ export default function ChatUI() {
         }
     }
 
+    async function submitChatReport() {
+        if (!reportingChat) return;
+
+        const description = reportDescription.trim();
+        if (description.length < 10) {
+            fireToast("danger", "Report Not Sent", "Please enter at least 10 characters.");
+            return;
+        }
+
+        setReportSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append("chatId", reportingChat.id);
+            formData.append("description", description);
+            if (reportAttachment) {
+                formData.append("attachment", reportAttachment);
+            }
+
+            const res = await fetch("/api/chats/report", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                fireToast("danger", "Report Failed", data.error ?? "Unable to submit report.");
+                return;
+            }
+
+            fireToast("success", "Report Submitted", "Your report was sent to admin for review.");
+            setReportingChat(null);
+            setReportDescription("");
+            setReportAttachment(null);
+        } catch {
+            fireToast("danger", "Report Failed", "Network error while submitting report.");
+        } finally {
+            setReportSubmitting(false);
+        }
+    }
+
+    function handleReportAttachmentChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0] ?? null;
+        if (!file) return;
+
+        const isImage = file.type.startsWith("image/");
+        const isVideo = file.type.startsWith("video/");
+        if (!isImage && !isVideo) {
+            fireToast("danger", "Invalid File", "Attachment must be an image or video.");
+            return;
+        }
+
+        const maxBytes = isVideo ? 25 * 1024 * 1024 : 10 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            fireToast("danger", "File Too Large", isVideo ? "Video must be 25MB or smaller." : "Image must be 10MB or smaller.");
+            return;
+        }
+
+        setReportAttachment(file);
+    }
+
     const filtered = conversations.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase())
     );
@@ -535,9 +599,17 @@ export default function ChatUI() {
                     ) : (
                         <div className="flex flex-col">
                             {filtered.map((chat) => (
-                                <button
+                                <div
                                     key={chat.id}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setActiveChat(chat.id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            setActiveChat(chat.id);
+                                        }
+                                    }}
                                     className={`flex items-center gap-3 p-4 border-l-4 text-left transition-all ${
                                         activeChat === chat.id
                                             ? "bg-teal-50/50 border-teal-500"
@@ -550,11 +622,26 @@ export default function ChatUI() {
                                     <div className="flex-1 min-w-0 overflow-hidden">
                                         <div className="flex justify-between items-baseline mb-0.5">
                                             <p className="text-md font-bold text-slate-900 truncate pr-2 leading-none">{chat.name}</p>
-                                            <span className="text-xs font-bold text-slate-400 shrink-0 uppercase tracking-tighter">{chat.date}</span>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {currentUserRole === "OWNER" && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setReportingChat(chat);
+                                                        }}
+                                                        className="text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-700"
+                                                        title={`Report ${chat.name}`}
+                                                    >
+                                                        Report
+                                                    </button>
+                                                )}
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{chat.date}</span>
+                                            </div>
                                         </div>
                                         <p className="text-sm text-slate-500 truncate font-medium">{chat.lastMessage || "No messages yet"}</p>
                                     </div>
-                                </button>
+                                </div>
                             ))}
                         </div>
                     )}
@@ -1094,6 +1181,102 @@ export default function ChatUI() {
                                     </a>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Report User Dialog */}
+            {reportingChat && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <AlertTriangle className="text-white" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-lg leading-none">Report User</h3>
+                                    <p className="text-red-100 text-xs mt-1">{reportingChat.name}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (reportSubmitting) return;
+                                    setReportingChat(null);
+                                    setReportDescription("");
+                                    setReportAttachment(null);
+                                }}
+                                className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                            >
+                                <X size={16} className="text-white" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                Explain what happened in this chat. This report will be submitted for admin review.
+                            </p>
+                            <textarea
+                                value={reportDescription}
+                                onChange={(e) => setReportDescription(e.target.value)}
+                                placeholder="Describe the issue (minimum 10 characters)..."
+                                rows={5}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all resize-none"
+                                disabled={reportSubmitting}
+                            />
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Attachment (Optional)</label>
+                                <label className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 hover:border-red-300 hover:bg-red-50/40 transition-all cursor-pointer flex items-center gap-2">
+                                    <Paperclip size={16} className="text-slate-400" />
+                                    <span>{reportAttachment ? reportAttachment.name : "Attach a photo or video"}</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        className="hidden"
+                                        onChange={handleReportAttachmentChange}
+                                        disabled={reportSubmitting}
+                                    />
+                                </label>
+                                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                                    <span>
+                                        {reportAttachment
+                                            ? `${(reportAttachment.size / (1024 * 1024)).toFixed(2)} MB`
+                                            : "Images up to 10MB, videos up to 25MB"}
+                                    </span>
+                                    {reportAttachment && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setReportAttachment(null)}
+                                            className="font-semibold text-slate-600 hover:text-slate-900"
+                                            disabled={reportSubmitting}
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    onClick={() => {
+                                        if (reportSubmitting) return;
+                                        setReportingChat(null);
+                                        setReportDescription("");
+                                        setReportAttachment(null);
+                                    }}
+                                    className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700"
+                                    disabled={reportSubmitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={submitChatReport}
+                                    disabled={reportSubmitting}
+                                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-60"
+                                >
+                                    {reportSubmitting ? "Submitting..." : "Submit Report"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

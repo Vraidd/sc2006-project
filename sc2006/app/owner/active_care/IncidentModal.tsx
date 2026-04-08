@@ -4,6 +4,7 @@ import {
     AlertTriangle,
     X,
     Dog,
+    DollarSign,
     Smartphone,
     FileText,
     ShieldAlert,
@@ -17,17 +18,19 @@ interface IncidentModalProps {
     bookingId?: string;
     petName?: string;
     caregiverName?: string;
+    allowRefundRequest?: boolean;
 }
 
-type IncidentType = 'SAFETY' | 'UNRESPONSIVE' | 'OTHER';
+type IncidentType = 'SAFETY' | 'UNRESPONSIVE' | 'REFUND' | 'OTHER';
 
 const INCIDENT_TYPE_OPTIONS: Array<{ id: IncidentType; label: string; icon: ReactNode }> = [
     { id: 'SAFETY', label: 'Safety/Well-being Concern', icon: <Dog size={24} /> },
     { id: 'UNRESPONSIVE', label: 'Caretaker Unresponsive', icon: <Smartphone size={24} /> },
+    { id: 'REFUND', label: 'Refund Request', icon: <DollarSign size={24} /> },
     { id: 'OTHER', label: 'Other Issue', icon: <FileText size={24} /> },
 ];
 
-export default function IncidentModal({ onClose, bookingId, petName, caregiverName }: IncidentModalProps) {
+export default function IncidentModal({ onClose, bookingId, petName, caregiverName, allowRefundRequest = false }: IncidentModalProps) {
     const [step, setStep] = useState(1);
     const [incidentType, setIncidentType] = useState<IncidentType | null>(null);
     const [description, setDescription] = useState('');
@@ -35,6 +38,13 @@ export default function IncidentModal({ onClose, bookingId, petName, caregiverNa
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
+
+    const visibleIncidentTypeOptions = INCIDENT_TYPE_OPTIONS.filter((type) => {
+        if (type.id === 'REFUND') {
+            return allowRefundRequest;
+        }
+        return true;
+    });
 
     const handleSelectType = (type: IncidentType) => {
         setIncidentType(type);
@@ -139,7 +149,7 @@ export default function IncidentModal({ onClose, bookingId, petName, caregiverNa
                             </p>
 
                             <div className="grid grid-cols-1 gap-3">
-                                {INCIDENT_TYPE_OPTIONS.map((type) => (
+                                {visibleIncidentTypeOptions.map((type) => (
                                     <button
                                         key={type.id}
                                         onClick={() => handleSelectType(type.id)}

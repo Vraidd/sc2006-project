@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
-import { Prisma } from '@/app/generated/prisma/client';
+import { Prisma, PaymentStatus } from '@/app/generated/prisma/client';
 
 function calculateBookingAmount(startDate: Date | string, endDate: Date | string, dailyRate?: number | null) {
   const start = new Date(startDate);
@@ -47,13 +47,31 @@ export async function GET(request: Request) {
 
     // Build where clause based on filters
     const where: Prisma.BookingWhereInput = {};
+    const refundedPaymentStatuses: PaymentStatus[] = ['REFUNDED', 'PARTIALLY_REFUNDED'];
+    const nonCompletedExcludedStatuses: PaymentStatus[] = ['COMPLETED', ...refundedPaymentStatuses];
+
+    where.payment = {
+      is: {
+        status: {
+          notIn: refundedPaymentStatuses,
+        },
+      },
+    };
+
     if (statusFilter !== 'all') {
       where.payment = {
-        status: statusFilter === 'Completed' ? 'COMPLETED' : 'PENDING',
+        is: {
+          status:
+            statusFilter === 'Completed'
+              ? 'COMPLETED'
+              : {
+                  notIn: nonCompletedExcludedStatuses,
+                },
+        },
       };
     }
 
-    // Fetch all completed bookings with payments
+    // Fetch completed bookings with non-refunded payments only
     const bookings = await prisma.booking.findMany({
       where: {
         status: 'COMPLETED',

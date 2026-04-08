@@ -23,14 +23,12 @@ import {
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
     const [reviewCaregiver, setReviewCaregiver] = useState<{ id: string; name: string } | null>(null);
-    const [incidentContext, setIncidentContext] = useState<{ bookingId: string; petName: string; caregiverName: string } | null>(null);
+    const [incidentContext, setIncidentContext] = useState<{ bookingId: string; petName: string; caregiverName: string; allowRefundRequest: boolean } | null>(null);
     const [bookings, setBookings] = useState<any[]>([]);
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
-    const [refundLoading, setRefundLoading] = useState<string | null>(null);
-    const [showRefundConfirm, setShowRefundConfirm] = useState<string | null>(null);
     const { user } = useAuth();
     const { fetchBooking, loading, error } = useBooking();
-    const { fireToast } = useToast();
+    useToast();
 
     useEffect(() => {
         if (user?.id) {
@@ -81,19 +79,6 @@ export default function Bookings() {
         } finally {
             setPaymentLoading(null);
         }
-    };
-
-    const handleRefundRequest = (bookingId: string) => {
-        const booking = bookings.find(b => b.id === bookingId);
-        if (booking) {
-            // Simulate refund request submission
-            fireToast(
-                "info", 
-                "Refund Request Submitted", 
-                `Your refund request for ${booking.petName} has been submitted. An administrator will review it shortly.`
-            );
-        }
-        setShowRefundConfirm(null);
     };
 
     return (
@@ -213,8 +198,9 @@ export default function Bookings() {
                                                 bookingId: booking.id,
                                                 petName: booking.petName,
                                                 caregiverName: booking.caregiverName,
+                                                allowRefundRequest: false,
                                             })}
-                                            className="flex-1 px-8 py-3.5 bg-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 text-center flex items-center justify-center gap-2 active:scale-95"
+                                            className="flex-1 px-8 py-3.5 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 text-center flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <AlertCircle size={16} /> Report Incident
                                         </button>
@@ -236,10 +222,15 @@ export default function Bookings() {
 
                                     {activeTab === "past" && isCompleted && (
                                         <button
-                                            onClick={() => setShowRefundConfirm(booking.id)}
+                                            onClick={() => setIncidentContext({
+                                                bookingId: booking.id,
+                                                petName: booking.petName,
+                                                caregiverName: booking.caregiverName,
+                                                allowRefundRequest: true,
+                                            })}
                                             className="flex-1 px-6 py-3.5 text-red-600 border border-red-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
                                         >
-                                            <AlertCircle size={16} /> Request Refund
+                                            <AlertCircle size={16} /> Report Incident
                                         </button>
                                     )}
                                 </div>
@@ -278,46 +269,10 @@ export default function Bookings() {
                     bookingId={incidentContext.bookingId}
                     petName={incidentContext.petName}
                     caregiverName={incidentContext.caregiverName}
+                    allowRefundRequest={incidentContext.allowRefundRequest}
                 />
             )}
 
-            {/* REFUND CONFIRMATION MODAL */}
-            {showRefundConfirm && (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 md:p-6" onClick={() => setShowRefundConfirm(null)}>
-                    <div className="bg-white rounded-[24px] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-6 border-b border-slate-100 bg-slate-50 shrink-0">
-                            <h2 className="font-bold text-xl text-slate-900">Request Refund</h2>
-                            <p className="text-sm font-semibold text-slate-500">Are you sure you want to request a refund for this booking?</p>
-                        </div>
-                        
-                        <div className="p-6 space-y-4 overflow-y-auto">
-                            <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-                                <div className="flex items-center gap-3">
-                                    <AlertCircle size={24} className="text-red-600" />
-                                    <div>
-                                        <p className="text-sm font-medium text-red-700">Refund Request</p>
-                                        <p className="text-sm text-red-600">This will submit a refund request to the administrator for review.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="p-4 bg-slate-50 rounded-xl">
-                                <p className="text-sm font-medium text-slate-500">Once submitted, the administrator will review your request and notify you of their decision.</p>
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0 mt-auto">
-                            <button onClick={() => setShowRefundConfirm(null)} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
-                            <button 
-                                onClick={() => handleRefundRequest(showRefundConfirm)}
-                                className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md"
-                            >
-                                Submit Request
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

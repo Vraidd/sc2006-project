@@ -100,6 +100,10 @@ export default function CaregiverTransactions() {
             const bookings = await fetchBooking({ caregiverId: user.id });
             const mappedTransactions: TransactionRow[] = (bookings || [])
                 .filter((booking: any) => String(booking.status ?? "").toUpperCase() === "COMPLETED")
+                .filter((booking: any) => {
+                    const paymentStatus = String(booking.payment?.status ?? "").toUpperCase();
+                    return paymentStatus !== "REFUNDED" && paymentStatus !== "PARTIALLY_REFUNDED";
+                })
                 .map((booking: any): TransactionRow => {
                     const days = calculateBookingDays(booking.startDate, booking.endDate);
                     const dailyRate = Number(booking.caregiver?.caregiverProfile?.dailyRate ?? 0);
