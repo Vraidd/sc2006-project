@@ -1,11 +1,11 @@
 "use client"
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Navbar from "../../components/Navbar"
 import Link from "next/link"
 import { Star, ChevronLeft, Send, Sparkles } from "lucide-react"
 
-export default function RatingPage() {
+function RatingPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirectUrl = searchParams.get("redirect") || "/owner/my_bookings";
@@ -122,5 +122,13 @@ export default function RatingPage() {
                 </button>
             </main>
         </div>
+    )
+}
+
+export default function RatingPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-50 font-sans pb-20" />}>
+            <RatingPageContent />
+        </Suspense>
     )
 }

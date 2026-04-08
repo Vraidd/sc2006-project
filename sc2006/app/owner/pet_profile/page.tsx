@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -7,7 +7,7 @@ import { ChevronLeft, Dog, ClipboardList, Upload, X, PawPrint } from 'lucide-rea
 import { useToast } from '@/app/context/ToastContext';
 import { usePets } from '@/hooks/usePets';
 
-export default function PetProfile() {
+function PetProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const petId = searchParams.get('id');
@@ -349,5 +349,13 @@ export default function PetProfile() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function PetProfile() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 font-sans pb-20" />}>
+            <PetProfileContent />
+        </Suspense>
     );
 }

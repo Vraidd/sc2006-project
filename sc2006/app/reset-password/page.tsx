@@ -1,11 +1,11 @@
 "use client"
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function ResetPassword() {
+function ResetPasswordContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { resetPassword } = useAuth();
@@ -134,5 +134,13 @@ export default function ResetPassword() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function ResetPassword() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex flex-col" />}>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
@@ -39,7 +39,7 @@ type IncidentRecord = {
   caretaker: string;
 };
 
-export default function AdminIncidents() {
+function AdminIncidentsContent() {
   const searchParams = useSearchParams();
 
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
@@ -573,5 +573,13 @@ export default function AdminIncidents() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminIncidents() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 font-sans" />}>
+      <AdminIncidentsContent />
+    </Suspense>
   );
 }

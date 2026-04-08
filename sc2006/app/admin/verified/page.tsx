@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
@@ -43,7 +43,7 @@ const PETS_HANDLED_LIST: Record<string, string> = {
   SMALL_ANIMAL: "Small Animals",
 };
 
-export default function VerifiedQueue() {
+function VerifiedQueueContent() {
   const searchParams = useSearchParams();
   const { fireToast } = useToast();
 
@@ -360,5 +360,13 @@ export default function VerifiedQueue() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function VerifiedQueue() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 font-sans pb-20" />}>
+      <VerifiedQueueContent />
+    </Suspense>
   );
 }

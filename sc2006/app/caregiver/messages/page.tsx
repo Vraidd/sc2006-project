@@ -1,4 +1,5 @@
 "use client"
+import { Suspense } from "react";
 import Navbar from "../../components/Navbar";
 import ChatUI from "../../components/ChatUI";
 
@@ -8,7 +9,9 @@ export default function MessagesPage() {
             <Navbar />
 
             {/* uses this for both owners & caregivers */}
-            <ChatUI />
+            <Suspense fallback={<div className="flex-1 bg-slate-50" />}>
+                <ChatUI />
+            </Suspense>
         </div>
     );
 }

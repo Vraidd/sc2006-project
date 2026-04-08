@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
@@ -44,7 +44,7 @@ type RefundStats = {
   totalPendingAmount: number;
 };
 
-export default function AdminRefunds() {
+function AdminRefundsContent() {
   const searchParams = useSearchParams();
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -790,5 +790,13 @@ export default function AdminRefunds() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminRefunds() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 font-sans" />}>
+      <AdminRefundsContent />
+    </Suspense>
   );
 }
