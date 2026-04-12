@@ -1,0 +1,4 @@
+{
+  "installCommand": "cd sc2006 && npm ci",
+  "buildCommand": "cd sc2006 && npm run build"
+}
