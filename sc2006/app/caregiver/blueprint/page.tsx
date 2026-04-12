@@ -128,7 +128,7 @@ export default function CaregiverPetBlueprint() {
                         <div className="px-10 py-6 bg-slate-900 rounded-4xl text-white flex items-center gap-4">
                             <ShieldCheck className="text-teal-400 shrink-0" size={32} />
                             <p className="text-xs text-slate-400 leading-normal font-medium">
-                                This blueprint is part of the <strong className="text-white">Active Care Arrangement</strong>. Access to this data is restricted to verified caregivers and will be automatically locked 7 days after the arrangement ends.
+                                This blueprint is part of the <strong className="text-white">Active Care Arrangement</strong>. Access to this data is restricted to verified caretakers and will be automatically locked 7 days after the arrangement ends.
                             </p>
                         </div>
                     </div>

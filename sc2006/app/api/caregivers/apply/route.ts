@@ -22,6 +22,14 @@ const caregiverApplicationSchema = z.object({
     .optional(),
 });
 
+const MAX_VERIFICATION_DOC_SIZE_BYTES = 5 * 1024 * 1024;
+
+function estimateBase64SizeBytes(dataUrl: string) {
+  const base64Data = dataUrl.split(',')[1] ?? '';
+  const padding = (base64Data.match(/=+$/)?.[0].length ?? 0);
+  return Math.floor((base64Data.length * 3) / 4) - padding;
+}
+
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -57,7 +65,26 @@ export async function POST(request: Request) {
       ? new Date(availabilityWindow.endDate)
       : null;
 
-    const verificationDocNames = (validated.verificationDocs ?? []).map((doc) => doc.name);
+    const verificationDocs = validated.verificationDocs ?? [];
+
+    for (const doc of verificationDocs) {
+      if (!doc.content.startsWith('data:')) {
+        return NextResponse.json(
+          { error: `Invalid attachment format for ${doc.name}` },
+          { status: 400 }
+        );
+      }
+
+      const sizeBytes = estimateBase64SizeBytes(doc.content);
+      if (sizeBytes > MAX_VERIFICATION_DOC_SIZE_BYTES) {
+        return NextResponse.json(
+          { error: `Attachment ${doc.name} exceeds 5MB limit` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const serializedVerificationDocs = verificationDocs.length > 0 ? JSON.stringify(verificationDocs) : null;
 
     const caregiverProfile = await prisma.$transaction(async (tx) => {
       const profile = await tx.caregiverProfile.upsert({
@@ -74,7 +101,7 @@ export async function POST(request: Request) {
           services: [],
           availabilityStartDate,
           availabilityEndDate,
-          verificationDoc: verificationDocNames.length > 0 ? verificationDocNames.join(', ') : null,
+          verificationDoc: serializedVerificationDocs,
           verified: false,
         },
         update: {
@@ -86,7 +113,7 @@ export async function POST(request: Request) {
           petPreferences: validated.petPreferences ?? [],
           availabilityStartDate,
           availabilityEndDate,
-          verificationDoc: verificationDocNames.length > 0 ? verificationDocNames.join(', ') : null,
+          verificationDoc: serializedVerificationDocs,
         },
       });
 
@@ -115,7 +142,7 @@ export async function POST(request: Request) {
               applicantId: userId,
               applicantName: user.name,
               dailyRate: validated.dailyRate,
-              documentCount: verificationDocNames.length,
+              documentCount: verificationDocs.length,
               requestedAt: new Date().toISOString(),
             },
           })),

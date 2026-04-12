@@ -135,10 +135,12 @@ export async function POST(request: Request) {
             return user;
         });
     
-        // Send verification email (don't await to not block response)
-        // In your register route
-        sendVerificationEmail(result.email, verificationToken, result.name)
-        .catch(console.error); // Log email errors but don't fail registration
+        // Await email send so serverless execution doesn't end before SMTP completes.
+        try {
+            await sendVerificationEmail(result.email, verificationToken, result.name);
+        } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+        }
         
         // Log registration
         console.log(`New user registered: ${result.email} (${result.id})`);

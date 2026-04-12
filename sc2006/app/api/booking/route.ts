@@ -180,13 +180,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Only CONFIRMED or IN_PROGRESS bookings can be completed' }, { status: 400 });
     }
 
-    if (status === 'COMPLETED' && new Date() <= toEndOfDay(booking.endDate)) {
-      return NextResponse.json(
-        { error: 'Booking cannot be completed yet', message: 'Booking can only be completed after the end date has passed' },
-        { status: 400 }
-      );
-    }
-
     // If caregiver is accepting (status = CONFIRMED), check for date conflicts
     if (status === 'CONFIRMED') {
       const caregiverConflict = await prisma.booking.findFirst({

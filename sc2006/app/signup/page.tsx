@@ -214,7 +214,7 @@ export default function Signup() {
                                     name="role"
                                     value="CAREGIVER"
                                 />
-                                Caregiver
+                                Caretaker
                                 </label>
                             </div>
                             </div>

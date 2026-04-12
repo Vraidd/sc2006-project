@@ -47,19 +47,10 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  identifier: z.string()
-    .min(3, 'Identifier must be at least 3 characters')
-    .max(100, 'Identifier too long')
-    .refine(
-      (value) => {
-        // Either valid email OR reasonable username
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(value) || /^[a-zA-Z0-9_]{3,30}$/.test(value);
-      },
-      {
-        message: 'Must be a valid email or username (letters, numbers, underscores)'
-      }
-    )
+  email: z.string()
+    .email('Please enter a valid email address')
+    .min(5, 'Email must be at least 5 characters')
+    .max(100, 'Email too long')
     .transform((value) => value.toLowerCase().trim()),
     
   password: z.string()

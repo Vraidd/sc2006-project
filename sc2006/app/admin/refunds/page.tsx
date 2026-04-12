@@ -44,6 +44,8 @@ type RefundStats = {
   totalPendingAmount: number;
 };
 
+type RefundTab = "pending" | "past";
+
 function AdminRefundsContent() {
   const searchParams = useSearchParams();
 
@@ -54,7 +56,9 @@ function AdminRefundsContent() {
   const [processNote, setProcessNote] = useState("");
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
+  const [activeTab, setActiveTab] = useState<RefundTab>(
+    searchParams.get("tab") === "past" ? "past" : "pending"
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -129,7 +133,7 @@ function AdminRefundsContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, startDate, endDate]);
+  }, [searchQuery, activeTab, startDate, endDate]);
 
   const selectedRefund = useMemo(
     () => refundRequests.find((request) => request.id === selectedRefundId) ?? null,
@@ -137,6 +141,10 @@ function AdminRefundsContent() {
   );
 
   const filteredRequests = refundRequests
+    .filter((request) => {
+      if (activeTab === "pending") return request.status === "Pending";
+      return request.status !== "Pending";
+    })
     .filter((request) => {
       if (!searchQuery) return true;
 
@@ -148,12 +156,6 @@ function AdminRefundsContent() {
         request.ownerName.toLowerCase().includes(query) ||
         request.caretaker.toLowerCase().includes(query)
       );
-    })
-    .filter((request) => {
-      if (statusFilter !== "all") {
-        return request.status === statusFilter;
-      }
-      return true;
     })
     .filter((request) => {
       const requestDate = new Date(request.datetime);
@@ -347,6 +349,31 @@ function AdminRefundsContent() {
         </div>
 
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className={`px-3.5 py-2 rounded-lg text-xs font-black uppercase tracking-widest border transition-all ${
+                activeTab === "pending"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              Pending ({refundStats.pendingCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("past")}
+              className={`px-3.5 py-2 rounded-lg text-xs font-black uppercase tracking-widest border transition-all ${
+                activeTab === "past"
+                  ? "bg-slate-100 text-slate-700 border-slate-300"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              Past ({refundStats.approvedCount + refundStats.rejectedCount})
+            </button>
+          </div>
+
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-50">
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Search</label>
@@ -361,21 +388,6 @@ function AdminRefundsContent() {
                 />
               </div>
             </div>
-            <div className="relative">
-              <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
-              >
-                <option value="all">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
-            </div>
-
             <div className="flex items-end gap-2">
               <div>
                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Start Date</label>

@@ -136,7 +136,7 @@ describe('booking route', () => {
     expect(payload.error).toBe('Booking conflict');
   });
 
-  it('rejects booking completion before end date passes', async () => {
+  it('allows caregiver to complete booking before the end date passes', async () => {
     mockVerifyToken.mockReturnValue({ userId: 'cg-1' });
     mockPrisma.booking.findUnique.mockResolvedValue({
       id: 'booking-1',
@@ -159,7 +159,18 @@ describe('booking route', () => {
     const response = await PATCH(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(payload.error).toBe('Booking cannot be completed yet');
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(mockPrisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'booking-1' },
+      data: { status: 'COMPLETED' },
+    }));
+    expect(mockRequestPaymentInChat).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: 'booking-1',
+      ownerId: 'owner-1',
+      caregiverId: 'cg-1',
+      senderId: 'cg-1',
+      petName: 'Buddy',
+    }));
   });
 });

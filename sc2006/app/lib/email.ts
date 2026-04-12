@@ -1,5 +1,17 @@
 import nodemailer from 'nodemailer';
 
+function getBaseUrl() {
+  const nextAuthUrl = process.env.NEXTAUTH_URL;
+  if (nextAuthUrl) return nextAuthUrl;
+
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`;
+  }
+
+  return 'http://localhost:3000';
+}
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -9,12 +21,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER!,
     pass: process.env.SMTP_PASS!,
   },
-  tls: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : { rejectUnauthorized: false }
+  tls: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : { rejectUnauthorized: false }
 });
 
 export async function sendVerificationEmail(email: string, token: string, name: string) {
-    // lib/email.ts - Update verificationUrl
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+  const baseUrl = getBaseUrl();
   const verificationUrl = `${baseUrl}/verify-email?token=${token}`
   
   const mailOptions = {
@@ -68,7 +79,8 @@ export async function sendVerificationEmail(email: string, token: string, name: 
     `,
   };
   
-  await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+  console.log('Verification email sent:', { to: email, messageId: info.messageId });
 }
 
 export async function sendWelcomeEmail(email: string, name: string) {
@@ -114,5 +126,6 @@ export async function sendWelcomeEmail(email: string, name: string) {
     `,
   };
   
-  await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+  console.log('Welcome email sent:', { to: email, messageId: info.messageId });
 }

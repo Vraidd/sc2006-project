@@ -98,18 +98,18 @@ export default function AdminDashboard() {
                 setLoadingCaregivers(true);
                 setLoadingTransactions(true);
                 
-                let verifiedCaregivers: Caregiver[] = [];
+                let allCaregivers: Caregiver[] = [];
                 let activeContractsCount = 0;
                 let pendingVerificationsCount = 0;
                 let totalRevenue = 0;
                 let pendingIncidentsCount = 0;
 
-                // Fetch caregivers
+                // Fetch all caretakers from caregiver_profiles via /api/caregivers.
                 const cargiverResponse = await fetch('/api/caregivers');
                 if (cargiverResponse.ok) {
                     const data = await cargiverResponse.json();
-                    verifiedCaregivers = (data.caregivers || []).filter((c: Caregiver) => c.verified);
-                    setCaregivers(verifiedCaregivers);
+                    allCaregivers = data.caregivers || [];
+                    setCaregivers(allCaregivers);
                 }
 
                 // Fetch active contracts
@@ -707,9 +707,9 @@ export default function AdminDashboard() {
                     <div className="text-left text-sm font-medium italic text-slate-500 mb-1">
                         {activeTab === "caretakers" && (
                             loadingCaregivers ? (
-                                <span className="flex items-center gap-2"><Loader size={14} className="animate-spin" />Loading caregivers...</span>
+                                <span className="flex items-center gap-2"><Loader size={14} className="animate-spin" />Loading caretakers...</span>
                             ) : (
-                                `Showing ${filteredCaretakers.length} of ${caregivers.length} caregiver${caregivers.length !== 1 ? 's' : ''}`
+                                `Showing ${filteredCaretakers.length} of ${caregivers.length} caretaker${caregivers.length !== 1 ? 's' : ''}`
                             )
                         )}
                         {activeTab === "transactions" && (

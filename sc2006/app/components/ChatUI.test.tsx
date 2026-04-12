@@ -72,7 +72,7 @@ describe('ChatUI', () => {
 
     await waitFor(() => expect(screen.getByText('Sarah Johnson')).toBeInTheDocument());
 
-    expect(screen.getByTitle('Report Sarah Johnson')).toBeInTheDocument();
+    expect(screen.getByTitle('Report Caretaker Sarah Johnson')).toBeInTheDocument();
 
     const secondRow = screen.getByText('Lisa Anderson').closest('[role="button"]') as HTMLElement;
     secondRow.focus();
@@ -81,13 +81,13 @@ describe('ChatUI', () => {
     await waitFor(() => expect(secondRow.className).toContain('bg-teal-50/50'));
   });
 
-  it('hides report button for caregiver', async () => {
+  it('shows report button for caregiver', async () => {
     activeRole = 'CAREGIVER';
     render(<ChatUI />);
 
     await waitFor(() => expect(screen.getByText('Sarah Johnson')).toBeInTheDocument());
 
-    expect(screen.queryByRole('button', { name: /^report$/i })).toBeNull();
+    expect(screen.getByTitle('Report Owner Sarah Johnson')).toBeInTheDocument();
   });
 
   it('rejects invalid report attachment for owner', async () => {
@@ -96,7 +96,7 @@ describe('ChatUI', () => {
 
     await waitFor(() => expect(screen.getByText('Sarah Johnson')).toBeInTheDocument());
 
-    await userEvent.click(screen.getByTitle('Report Sarah Johnson'));
+    await userEvent.click(screen.getByTitle('Report Caretaker Sarah Johnson'));
     await waitFor(() => expect(screen.getByText('Report User')).toBeInTheDocument());
 
     const attachmentLabel = screen.getByText('Attach a photo or video').closest('label') as HTMLLabelElement;
@@ -113,7 +113,7 @@ describe('ChatUI', () => {
 
     await waitFor(() => expect(screen.getByText('Sarah Johnson')).toBeInTheDocument());
 
-    await userEvent.click(screen.getByTitle('Report Sarah Johnson'));
+    await userEvent.click(screen.getByTitle('Report Caretaker Sarah Johnson'));
     await waitFor(() => expect(screen.getByText('Report User')).toBeInTheDocument());
 
     await userEvent.click(screen.getByRole('button', { name: /submit report/i }));
@@ -127,7 +127,7 @@ describe('ChatUI', () => {
 
     await waitFor(() => expect(screen.getByText('Sarah Johnson')).toBeInTheDocument());
 
-    await userEvent.click(screen.getByTitle('Report Sarah Johnson'));
+    await userEvent.click(screen.getByTitle('Report Caretaker Sarah Johnson'));
     await waitFor(() => expect(screen.getByText('Report User')).toBeInTheDocument());
 
     const attachmentLabel = screen.getByText('Attach a photo or video').closest('label') as HTMLLabelElement;

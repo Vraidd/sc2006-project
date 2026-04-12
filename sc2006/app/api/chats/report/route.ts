@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const userId = (payload as { userId: string }).userId;
+    const userId = (payload as { userId: string; role?: string }).userId;
+    const userRole = (payload as { userId: string; role?: string }).role;
 
     const contentType = request.headers.get('content-type') ?? '';
 
@@ -130,12 +131,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (userId !== chat.ownerId) {
-      return NextResponse.json(
-        { error: 'Only owners can submit user reports from chat at the moment' },
-        { status: 403 }
-      );
-    }
+    const reportedUserId = userId === chat.ownerId ? chat.caregiverId : chat.ownerId;
+    const isReportedOwner = reportedUserId === chat.ownerId;
 
     const latestBooking = await prisma.booking.findFirst({
       where: {
@@ -156,10 +153,10 @@ export async function POST(request: NextRequest) {
     const incident = await prisma.incident.create({
       data: {
         bookingId: latestBooking.id,
-        reporterId: chat.ownerId,
-        caregiverId: chat.caregiverId,
+        reporterId: userId,
+        caregiverId: reportedUserId,
         type: 'OTHER',
-        description: `Chat report: ${description}`,
+        description: `Chat report (${isReportedOwner ? 'owner' : 'caretaker'}): ${description}`,
         attachmentUrl,
         attachmentType,
         attachmentName,

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useBooking } from "@/hooks/useBooking";
 import { useAuth } from "@/hooks/useAuth";
 import ReviewModal from "./ReviewModal"; // Import the new modal here
@@ -26,8 +27,10 @@ export default function Bookings() {
     const [incidentContext, setIncidentContext] = useState<{ bookingId: string; petName: string; caregiverName: string; allowRefundRequest: boolean } | null>(null);
     const [bookings, setBookings] = useState<any[]>([]);
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
+    const [messageLoading, setMessageLoading] = useState<string | null>(null);
     const { user } = useAuth();
     const { fetchBooking, loading, error } = useBooking();
+    const router = useRouter();
     useToast();
 
     useEffect(() => {
@@ -48,7 +51,7 @@ export default function Bookings() {
             startDate: b.startDate,
             petName: b.pet?.name ?? 'Unknown Pet',
             caregiverId: b.caregiver?.id ?? '',
-            caregiverName: b.caregiver?.name ?? 'Unknown Caregiver',
+            caregiverName: b.caregiver?.name ?? 'Unknown Caretaker',
             dates: `${new Date(b.startDate).toLocaleDateString()} - ${new Date(b.endDate).toLocaleDateString()}`,
             location: 'In Home',
             price: b.totalPrice ?? 0,
@@ -78,6 +81,32 @@ export default function Bookings() {
             console.error("Payment failed:", err);
         } finally {
             setPaymentLoading(null);
+        }
+    };
+
+    const handleMessageClick = async (booking: any) => {
+        if (!user?.id || !booking.caregiverId || messageLoading === booking.id) {
+            return;
+        }
+
+        setMessageLoading(booking.id);
+        try {
+            const response = await fetch(`/api/chats?ownerId=${user.id}&caregiverId=${booking.caregiverId}`);
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to open chat');
+            }
+
+            if (!data.chatId) {
+                throw new Error('Failed to open chat');
+            }
+
+            router.push(`/owner/messages?chatId=${data.chatId}`);
+        } catch (err) {
+            console.error('Failed to open chat:', err);
+        } finally {
+            setMessageLoading(null);
         }
     };
 
@@ -185,12 +214,13 @@ export default function Bookings() {
                                 </div>
 
                                 <div className="flex flex-col gap-3 w-full md:w-auto">
-                                    <Link 
-                                        href={`/owner/messages`}
-                                        className="flex-1 px-6 py-3.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 active:scale-95"
+                                    <button
+                                        onClick={() => handleMessageClick(booking)}
+                                        disabled={messageLoading === booking.id}
+                                        className="flex-1 px-6 py-3.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                                     >
-                                        <MessageCircle size={16} /> Message
-                                    </Link>
+                                        <MessageCircle size={16} /> {messageLoading === booking.id ? 'Opening...' : 'Message'}
+                                    </button>
                                     
                                     {isLive && (
                                         <button
@@ -246,7 +276,7 @@ export default function Bookings() {
                             <h3 className="text-2xl font-black text-slate-900 tracking-tight">No {activeTab} bookings</h3>
                             <p className="text-slate-500 mb-8 font-medium mt-2">Ready to find the perfect match for your pet?</p>
                             <Link href="/owner/search_caregivers" className="bg-teal-600 text-white text-xs uppercase tracking-widest px-10 py-4 rounded-2xl font-black hover:bg-teal-700 transition-all shadow-xl shadow-teal-600/20 active:scale-95">
-                                Browse Caregivers
+                                Browse Caretakers
                             </Link>
                         </div>
                     )}

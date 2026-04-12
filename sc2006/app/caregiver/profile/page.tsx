@@ -220,12 +220,23 @@ const serviceDetails = [
 
 
 const petIcons: Record<string, React.ReactNode> = {
-    "dogs": <Dog size={14} />,
-    "cats": <Cat size={14} />,
-    "birds": <Bird size={14} />,
-    "reptiles": <Turtle size={14} />,
-    "small mammals": <Rabbit size={14} />,
-    "fish": <Fish size={14} />
+    "DOG": <Dog size={14} />,
+    "CAT": <Cat size={14} />,
+    "BIRD": <Bird size={14} />,
+    "REPTILE": <Turtle size={14} />,
+    "SMALL_ANIMAL": <Rabbit size={14} />,
+    "FISH": <Fish size={14} />,
+    "OTHER": <Dog size={14} />
+}
+
+const petLabels: Record<string, string> = {
+    "DOG": "Dogs",
+    "CAT": "Cats", 
+    "BIRD": "Birds",
+    "REPTILE": "Reptiles",
+    "SMALL_ANIMAL": "Small Mammals",
+    "FISH": "Fish",
+    "OTHER": "Other"
 }
 
 const initialUser = {
@@ -262,7 +273,8 @@ export default function CaretakerProfile() {
             services: cp?.services || [],
             });
             setAvatar((user as any).avatar || null);
-            setIsVerified(Boolean(cp?.verified));
+            // Only show verification status from caregiver_profiles.verified.
+            setIsVerified(cp?.verified === true);
 
             if (user.id) {
                 fetch(`/api/reviews?caregiverId=${user.id}`)
@@ -314,7 +326,7 @@ export default function CaretakerProfile() {
                             <div className="flex items-center gap-4 text-sm text-teal-50 mb-4">
                                 <span className="flex items-center gap-1">
                                     <MapPin size={14} className="text-teal-200" />
-                                    <span className="leading-none pt-px">{profileData.location || "Bukit Batok"}</span>
+                                    <span className="leading-none pt-px">{profileData.location || "Not specified"}</span>
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Star size={14} className="text-yellow-300" fill="currentColor" />
@@ -328,7 +340,7 @@ export default function CaretakerProfile() {
                             <div className="flex gap-2">
                                 {profileData.pets.map(pet => (
                                     <span key={pet} className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                                        {petIcons[pet.toLowerCase()]} {pet}
+                                        {petIcons[pet]} {petLabels[pet] || pet}
                                     </span>
                                 ))}
                             </div>

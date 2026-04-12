@@ -1,7 +1,8 @@
 "use client"
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Navbar from '../../components/Navbar';
 import CaretakerCard from '../../components/CaretakerCard'; // Importing your component
+import DatePickerModal from '../DatePickerModal';
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import { 
@@ -29,12 +30,15 @@ interface Caregiver {
   imageUrl?: string;
   petsHandled?: string[];
   locationCoords?: [number,number];
+    availabilityStartDate?: string | null;
+    availabilityEndDate?: string | null;
   bookings?: Array<{
     id: string;
     startDate: string;
     endDate: string;
     status: string;
   }>;
+    availabilityMatchDays?: number | null;
 }
 
 interface OneMapOption {
@@ -83,10 +87,53 @@ const MapComponent = dynamic(
     }
 );
 
+function startOfDay(date: Date | string) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function endOfDay(date: Date | string) {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
+}
+
+function countInclusiveDays(start: Date, end: Date) {
+    const msPerDay = 1000 * 60 * 60 * 24;
+    return Math.max(0, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+}
+
+function countOverlappingDays(
+    requestedStart: Date,
+    requestedEnd: Date,
+    bookings: Array<{ startDate: string; endDate: string; status: string }>
+) {
+    let overlapDays = 0;
+
+    for (const booking of bookings) {
+        const status = String(booking.status ?? '').toUpperCase();
+        if (status !== 'CONFIRMED' && status !== 'IN_PROGRESS') {
+            continue;
+        }
+
+        const bookingStart = startOfDay(booking.startDate);
+        const bookingEnd = endOfDay(booking.endDate);
+        const overlapStart = new Date(Math.max(requestedStart.getTime(), bookingStart.getTime()));
+        const overlapEnd = new Date(Math.min(requestedEnd.getTime(), bookingEnd.getTime()));
+
+        if (overlapStart <= overlapEnd) {
+            overlapDays += countInclusiveDays(startOfDay(overlapStart), startOfDay(overlapEnd));
+        }
+    }
+
+    return overlapDays;
+}
+
 export default function SearchCaregivers() {
     const { fetchCaregivers } = useUsers();
     const [allCaregivers, setAllCaregivers] = useState<Caregiver[]>([]);
-    const { user, loading: authLoading } = useAuth();
+    const { loading: authLoading } = useAuth();
     const [loading, setLoading] = useState(false);
 
     // FILTER & MAP STATES
@@ -98,6 +145,8 @@ export default function SearchCaregivers() {
     const [petTypes, setPetTypes] = useState<string[]>([]);
     const [minYearsExperience, setMinYearsExperience] = useState(0);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [selectedDates, setSelectedDates] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
     const [searchTrigger, setSearchTrigger] = useState(0);
     const [locationOptions, setLocationOptions] = useState<OneMapOption[]>([]);
     const [locationSearchLoading, setLocationSearchLoading] = useState(false);
@@ -154,29 +203,81 @@ export default function SearchCaregivers() {
     }
 
     const getFilteredCaregivers = useMemo(() => {
-        return allCaregivers.filter(caregiver => {
-        // Location filter
-        const hasLocation = locationCoords[0] !== 0 || locationCoords[1] !== 0;
-        if (hasLocation && caregiver.locationCoords) {
-            if (getDistance(caregiver.locationCoords, locationCoords) > minDistance) return false;
-        }
-        // Pet type filter
-        if (petTypes.length > 0) {
-            const caregiverPets = caregiver.petPreferences ?? caregiver.petsHandled ?? [];
-            const hasPet = caregiverPets.some(pet => petTypes.includes(pet));
-            if (!hasPet) return false;
-        }
-        // Experience filter
-        if ((caregiver.experience || 0) < minYearsExperience) return false;
-        return true;
-        });
+        return allCaregivers
+            .filter(caregiver => {
+                // Location filter
+                const hasLocation = locationCoords[0] !== 0 || locationCoords[1] !== 0;
+                if (hasLocation) {
+                    if (!caregiver.locationCoords) return false;
+                    if (getDistance(caregiver.locationCoords, locationCoords) > minDistance) return false;
+                }
+                // Pet type filter
+                if (petTypes.length > 0) {
+                    const caregiverPets = caregiver.petPreferences ?? caregiver.petsHandled ?? [];
+                    const hasPet = caregiverPets.some(pet => petTypes.includes(pet));
+                    if (!hasPet) return false;
+                }
+                // Experience filter
+                if ((caregiver.experience || 0) < minYearsExperience) return false;
+
+                let startDate = selectedDates.start;
+                let endDate = selectedDates.end;
+
+                if (startDate && !endDate) {
+                    endDate = startDate;
+                } else if (endDate && !startDate) {
+                    startDate = endDate;
+                }
+
+                caregiver.availabilityMatchDays = null;
+
+                if (startDate && endDate) {
+                    const selectedStart = startOfDay(startDate);
+                    const selectedEnd = endOfDay(endDate);
+                    let effectiveStart = selectedStart;
+                    let effectiveEnd = selectedEnd;
+
+                    if (caregiver.availabilityStartDate && caregiver.availabilityEndDate) {
+                        const caregiverAvailableStart = startOfDay(caregiver.availabilityStartDate);
+                        const caregiverAvailableEnd = endOfDay(caregiver.availabilityEndDate);
+
+                        const overlapStartMs = Math.max(selectedStart.getTime(), caregiverAvailableStart.getTime());
+                        const overlapEndMs = Math.min(selectedEnd.getTime(), caregiverAvailableEnd.getTime());
+
+                        if (overlapStartMs > overlapEndMs) {
+                            caregiver.availabilityMatchDays = 0;
+                            return false;
+                        }
+
+                        effectiveStart = new Date(overlapStartMs);
+                        effectiveEnd = new Date(overlapEndMs);
+                    }
+
+                    const totalRequestedDays = countInclusiveDays(startOfDay(effectiveStart), startOfDay(effectiveEnd));
+                    const overlappingDays = countOverlappingDays(effectiveStart, effectiveEnd, caregiver.bookings ?? []);
+                    const matchedAvailableDays = Math.max(0, totalRequestedDays - overlappingDays);
+
+                    caregiver.availabilityMatchDays = matchedAvailableDays;
+                    if (matchedAvailableDays <= 0) return false;
+                }
+
+                return true;
+            })
+            .sort((a, b) => {
+                const overlapDiff = (b.availabilityMatchDays ?? 0) - (a.availabilityMatchDays ?? 0);
+                if (overlapDiff !== 0) return overlapDiff;
+
+                const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+                if (ratingDiff !== 0) return ratingDiff;
+
+                const reviewsDiff = (b.reviews ?? 0) - (a.reviews ?? 0);
+                if (reviewsDiff !== 0) return reviewsDiff;
+
+                return (a.name ?? '').localeCompare(b.name ?? '');
+            });
     }, [allCaregivers, locationInput, locationCoords, minDistance, petTypes, minYearsExperience, searchTrigger]);
 
-    const topRatedCaregivers = useMemo(() => {
-        return [...getFilteredCaregivers]
-            .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-            .slice(0, 3);
-    }, [getFilteredCaregivers]);
+    const topRatedCaregivers = useMemo(() => getFilteredCaregivers.slice(0, 3), [getFilteredCaregivers]);
 
     const handleMapClick = (coords: [number, number]) => {
         const lat = coords[0].toFixed(4);
@@ -236,7 +337,7 @@ export default function SearchCaregivers() {
 
             <main className="max-w-6xl mx-auto px-8 py-12">
                 <div className="mb-12">
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Find Caregivers</h1>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Find Caretakers</h1>
                     <h5 className="text-lg text-slate-500 mt-2 font-bold">
                         Discover trusted peers in your area based on your pet's specific needs.
                     </h5>
@@ -244,8 +345,21 @@ export default function SearchCaregivers() {
                 <div className="mb-12">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Map View</h2>
                     <p className="text-base text-slate-500 mt-2 font-medium">
-                        Enter your location or click anywhere on the map to find nearby caregivers.
+                        Enter your location or click anywhere on the map to find nearby caretakers.
                     </p>
+
+                    <div className="flex flex-wrap gap-3 mt-5">
+                        <button
+                            onClick={() => setIsDatePickerOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                        >
+                            <Calendar size={16} className="text-teal-600" />
+                            <span>Availability</span>
+                            {(selectedDates.start || selectedDates.end) && (
+                                <span className="w-2 h-2 rounded-full bg-teal-500 ml-1"></span>
+                            )}
+                        </button>
+                    </div>
 
                     {/* WARNING: COMMENT THIS OUT WHEN EDITING OTHER THINGS CAUSE WE DON'T WANNA SPAM TOO MANY API CALLS TO data.gov.sg */}
                     <MapComponent
@@ -275,7 +389,7 @@ export default function SearchCaregivers() {
                             }}
                             onFocus={() => setShowLocationDropdown(true)}
                             onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
-                            placeholder="Search by location, postal code, or caregiver name..." 
+                            placeholder="Search by location, postal code, or caretaker name..." 
                             className="w-full pl-12 pr-32 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-base font-medium focus:outline-none focus:border-teal-500 focus:bg-white transition-all relative z-0" 
                         />
                         
@@ -311,11 +425,11 @@ export default function SearchCaregivers() {
                                     Use my current location
                                 </div>
 
-                                {/* IF INPUT IS EMPTY: Show Top Caregivers & Top Locations */}
+                                {/* IF INPUT IS EMPTY: Show Top Caretakers & Top Locations */}
                                 {locationInput.length === 0 ? (
                                     <>
                                         <div className="mb-2">
-                                            <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Top Caregivers</div>
+                                            <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Top Caretakers</div>
                                             {topRatedCaregivers.map(cg => (
                                                 <div key={`top-cg-${cg.id}`} onClick={() => handleSelectCaregiver(cg)} className="px-5 py-3 hover:bg-slate-50 cursor-pointer text-slate-700 font-bold transition-colors flex items-center gap-3">
                                                     <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
@@ -328,7 +442,7 @@ export default function SearchCaregivers() {
                                         </div>
                                         <div>
                                             <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Popular Locations</div>
-                                            {["Bukit Batok", "Tampines", "Ang Mo Kio"].map((region) => (
+                                            {["Tampines", "Ang Mo Kio", "Jurong East"].map((region) => (
                                                 <div 
                                                     key={`top-loc-${region}`}
                                                     onClick={() => handleSelectRegion(region)}
@@ -364,10 +478,10 @@ export default function SearchCaregivers() {
                                             )}
                                         </div>
 
-                                        {/* CAREGIVER SUGGESTIONS */}
+                                        {/* CARETAKER SUGGESTIONS */}
                                         {getFilteredCaregivers.length > 0 && (
                                             <div className="mb-2">
-                                                <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Caregivers</div>
+                                                <div className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Caretakers</div>
                                                 {getFilteredCaregivers.map(cg => (
                                                     <div key={`cg-${cg.id}`} onClick={() => handleSelectCaregiver(cg)} className="px-5 py-3 hover:bg-slate-50 cursor-pointer text-slate-700 font-bold transition-colors flex items-center gap-3">
                                                         <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
@@ -396,7 +510,7 @@ export default function SearchCaregivers() {
 
                 <div className="flex justify-between items-center mb-8 px-2">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                        {getFilteredCaregivers.length} Caregivers available
+                        {getFilteredCaregivers.length} Caretakers available
                     </h2>
                     <button
                         onClick={() => setIsFilterModalOpen(true)}
@@ -529,6 +643,18 @@ export default function SearchCaregivers() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isDatePickerOpen && (
+                <DatePickerModal
+                    initialStartDate={selectedDates.start}
+                    initialEndDate={selectedDates.end}
+                    onClose={() => setIsDatePickerOpen(false)}
+                    onConfirm={(startDate, endDate) => {
+                        setSelectedDates({ start: startDate, end: endDate });
+                        setIsDatePickerOpen(false);
+                    }}
+                />
             )}
         </div>
     );

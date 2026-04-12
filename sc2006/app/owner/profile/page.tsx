@@ -13,7 +13,6 @@ import {
     Settings,
     Save,
     X,
-    AlertTriangle,
     MapPin
 } from "lucide-react";
 
@@ -22,6 +21,15 @@ type Option = {
   value: string;
   lat: number;
   lng: number;
+};
+
+type IncidentReport = {
+        id: string;
+        title: string;
+        filed: string;
+        description: string;
+        caretaker: string;
+        status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED' | string;
 };
 
 // DUMMY DATA
@@ -38,10 +46,10 @@ const initialUser = {
 export default function OwnerProfile() {
     const { user, loading } = useAuth();
     const [profileData, setProfileData] = useState(initialUser);
+    const [originalProfileData, setOriginalProfileData] = useState(initialUser);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState("personal");
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [avatar, setAvatar] = useState<string | null>(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
@@ -50,10 +58,13 @@ export default function OwnerProfile() {
     const [search, setSearch] = useState("");
     const [options, setOptions] = useState<Option[]>([]);
     const [selected, setSelected] = useState<Option | null>(null);
+    const [reports, setReports] = useState<IncidentReport[]>([]);
+    const [reportsLoading, setReportsLoading] = useState(true);
+    const [reportsError, setReportsError] = useState<string | null>(null);
 
     useEffect(() => {
     if (user && !loading) {
-        setProfileData({
+        const fetchedProfile = {
         initials: user.name?.[0] || '',
         email: user.email || '',
         name: user.name || '',
@@ -61,7 +72,9 @@ export default function OwnerProfile() {
         location: user.location || '',
         latitude: (user as any).latitude || '',
         longitude: (user as any).longitude || ''
-        });
+        };
+        setProfileData(fetchedProfile);
+        setOriginalProfileData(fetchedProfile);
         setAvatar((user as any).avatar || null);
     }
     }, [user, loading]);
@@ -91,16 +104,77 @@ export default function OwnerProfile() {
         return () => clearTimeout(id);
     }, [search]);
 
-    const [reports, setReports] = useState([
-        {
-            id: 1,
-            title: "dog malnourished",
-            date: "Feb 20, 2026 6:50 PM",
-            description: "she forgot to feed the dog",
-            regarding: "Sarah Chen",
-            status: "Pending Review"
+    useEffect(() => {
+        const fetchMyReports = async () => {
+            if (!user || loading) return;
+
+            try {
+                setReportsLoading(true);
+                setReportsError(null);
+
+                const res = await fetch('/api/incidents/my', { credentials: 'include' });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'Failed to load reports');
+                }
+
+                const data = await res.json();
+                const mappedReports: IncidentReport[] = Array.isArray(data.incidents)
+                    ? data.incidents.map((incident: any) => ({
+                        id: incident.id,
+                        title: incident.title || 'Incident Report',
+                        filed: new Date(incident.filed).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                        }),
+                        description: incident.description || '',
+                        caretaker: incident.caretaker || 'Unknown',
+                        status: incident.status || 'PENDING',
+                    }))
+                    : [];
+
+                setReports(mappedReports);
+            } catch (err: any) {
+                setReportsError(err.message || 'Failed to load reports');
+            } finally {
+                setReportsLoading(false);
+            }
+        };
+
+        fetchMyReports();
+    }, [user, loading]);
+
+    const getReportStatusLabel = (status: IncidentReport['status']) => {
+        switch (status) {
+            case 'PENDING':
+                return 'Pending Review';
+            case 'UNDER_REVIEW':
+                return 'Under Review';
+            case 'RESOLVED':
+                return 'Resolved';
+            case 'DISMISSED':
+                return 'Dismissed';
+            default:
+                return status;
         }
-    ]);
+    };
+
+    const getReportStatusBadgeClass = (status: IncidentReport['status']) => {
+        switch (status) {
+            case 'PENDING':
+            case 'UNDER_REVIEW':
+                return 'bg-amber-100 text-amber-800 border-amber-200';
+            case 'RESOLVED':
+                return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+            case 'DISMISSED':
+                return 'bg-slate-100 text-slate-700 border-slate-200';
+            default:
+                return 'bg-slate-100 text-slate-700 border-slate-200';
+        }
+    };
 
     const handleSave = async () => {
         try {
@@ -128,13 +202,23 @@ export default function OwnerProfile() {
         const data = await res.json();
 
         // Update local state with server-confirmed values
-        setProfileData(prev => ({
-            ...prev,
+        const savedProfile = {
             initials: data.user.name?.[0] || '',
+            email: data.user.email || profileData.email,
             name: data.user.name || '',
             phone: data.user.phone || '',
             location: data.user.location || '',
-        }));
+            latitude: String((data.user as any).latitude ?? profileData.latitude ?? ''),
+            longitude: String((data.user as any).longitude ?? profileData.longitude ?? ''),
+        };
+
+        setProfileData(savedProfile);
+        setOriginalProfileData(savedProfile);
+
+        // Clear location search UI after successful save.
+        setSearch("");
+        setSelected(null);
+        setOptions([]);
 
         setIsEditing(false);
         } catch (err: any) {
@@ -347,7 +431,14 @@ export default function OwnerProfile() {
                             {isEditing && (
                                 <div className="pt-6 border-t border-slate-50 flex items-center gap-4">
                                     <button
-                                        onClick={() => { setIsEditing(false); setProfileData(initialUser); }}
+                                        onClick={() => {
+                                            setIsEditing(false);
+                                            setProfileData(originalProfileData);
+                                            setSearch("");
+                                            setSelected(null);
+                                            setOptions([]);
+                                            setError(null);
+                                        }}
                                         className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-red-400 transition-colors flex items-center gap-2"
                                     >
                                         <X size={14} /> Discard Changes
@@ -360,35 +451,33 @@ export default function OwnerProfile() {
                     {/* INCIDENT REPORTS TAB */}
                     {activeTab === "incidents" && (
                         <div className="animate-in fade-in duration-300">
-                            <div className="flex justify-between items-start mb-8">
+                            <div className="mb-8">
                                 <div>
                                     <h2 className="text-xl font-black text-slate-900">My Incident Reports</h2>
                                     <p className="text-sm font-medium text-slate-500 mt-1">Track issues and safety concerns</p>
                                 </div>
-                                <button 
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="bg-red-50 text-red-600 border border-red-100 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-colors flex items-center gap-2 active:scale-95"
-                                >
-                                    <AlertTriangle size={14} /> File Report
-                                </button>
                             </div>
 
-                            {reports.length > 0 ? (
+                            {reportsLoading ? (
+                                <div className="py-14 text-center text-sm font-medium text-slate-500">Loading your reports...</div>
+                            ) : reportsError ? (
+                                <div className="py-14 text-center text-sm font-bold text-red-600">{reportsError}</div>
+                            ) : reports.length > 0 ? (
                                 <div className="space-y-4">
                                     {reports.map((report) => (
                                         <div key={report.id} className="border border-slate-100 rounded-3xl p-8 bg-slate-50 hover:bg-white transition-colors shadow-sm">
                                             <div className="flex justify-between items-start mb-4">
                                                 <div>
                                                     <h3 className="font-black text-lg text-slate-900">{report.title}</h3>
-                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Filed {report.date}</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Filed {report.filed}</p>
                                                 </div>
-                                                <span className="px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-black uppercase tracking-wider rounded-xl border border-amber-200 flex items-center gap-1.5">
-                                                    <Clock size={12} /> {report.status}
+                                                <span className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl border flex items-center gap-1.5 ${getReportStatusBadgeClass(report.status)}`}>
+                                                    <Clock size={12} /> {getReportStatusLabel(report.status)}
                                                 </span>
                                             </div>
                                             <p className="text-sm font-medium text-slate-700 mt-4 leading-relaxed">{report.description}</p>
                                             <p className="text-sm font-bold text-slate-500 mt-6 flex items-center gap-2">
-                                                <User size={14} className="text-slate-400" /> Regarding: <span className="text-slate-900">{report.regarding}</span>
+                                                <User size={14} className="text-slate-400" /> Regarding: <span className="text-slate-900">{report.caretaker}</span>
                                             </p>
                                         </div>
                                     ))}
@@ -406,81 +495,6 @@ export default function OwnerProfile() {
                     )}
                 </div>
             </main>
-
-            {/* MODAL OVERLAY - INCIDENT REPORT */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]">
-                        <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white shrink-0">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">File an Incident</h2>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Dispute Resolution Form</p>
-                            </div>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        
-                        <div className="p-8 space-y-6 overflow-y-auto">
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Related Booking (Optional)</label>
-                                <select className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-700 focus:outline-none focus:border-teal-500 focus:bg-white transition-all">
-                                    <option>Select a booking</option>
-                                    <option>Dawg - Feb 16 to Feb 19</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Caretaker Email</label>
-                                <input type="email" placeholder="Caretaker's email" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Title <span className="text-red-500">*</span></label>
-                                <input type="text" placeholder="Brief description of the issue" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Description <span className="text-red-500">*</span></label>
-                                <textarea rows={4} placeholder="Provide detailed information about the incident..." className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:border-teal-500 focus:bg-white transition-all resize-none"></textarea>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Priority</label>
-                                <select className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-700 focus:outline-none focus:border-teal-500 focus:bg-white transition-all">
-                                    <option>High</option>
-                                    <option>Medium</option>
-                                    <option>Low</option>
-                                </select>
-                            </div>
-
-                            <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-5 mt-4">
-                                <h4 className="text-xs font-black uppercase tracking-widest text-teal-800 flex items-center gap-2 mb-2">
-                                    <ClipboardList size={14} /> Workflow Process
-                                </h4>
-                                <p className="text-sm font-medium text-teal-700 leading-relaxed">
-                                    Our HR team will review this report, check system audit logs, and contact you via email within 24-48 hours.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t border-slate-50 flex justify-end gap-3 bg-white shrink-0">
-                            <button 
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-6 py-3.5 border border-slate-200 bg-white rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={() => setIsModalOpen(false)} 
-                                className="px-6 py-3.5 bg-red-600 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 active:scale-95 flex items-center gap-2"
-                            >
-                                <AlertTriangle size={16} /> Submit Report
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

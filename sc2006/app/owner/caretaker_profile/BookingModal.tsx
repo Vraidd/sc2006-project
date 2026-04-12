@@ -130,7 +130,7 @@ export default function BookingModal({ caregiverName, caregiverId, dailyRate, pe
 
                         {hasAvailabilityWindow && (
                             <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
-                                Caregiver booking window: {availabilityRangeLabel}
+                                Caretaker booking window: {availabilityRangeLabel}
                             </div>
                         )}
 
@@ -185,7 +185,7 @@ export default function BookingModal({ caregiverName, caregiverId, dailyRate, pe
                         {/* SUMMARY INVOICE */}
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 p-6 mb-8">
                             <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
-                                <span className="text-sm font-bold text-slate-500">Caregiver</span>
+                                <span className="text-sm font-bold text-slate-500">Caretaker</span>
                                 <span className="text-sm font-black text-slate-900">{caregiverName}</span>
                             </div>
                             <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
@@ -209,7 +209,7 @@ export default function BookingModal({ caregiverName, caregiverId, dailyRate, pe
                         <div className="flex items-center gap-3 bg-teal-50/50 p-4 rounded-xl border border-teal-100 mb-8">
                             <ShieldCheck size={20} className="text-teal-600 shrink-0" />
                             <p className="text-xs text-teal-800 font-medium leading-relaxed">
-                                By confirming, you agree to Pawsport's Trust & Safety terms. No charges are made until the caregiver accepts.
+                                By confirming, you agree to Pawsport's Trust & Safety terms. No charges are made until the caretaker accepts.
                             </p>
                         </div>
 
@@ -231,7 +231,7 @@ export default function BookingModal({ caregiverName, caregiverId, dailyRate, pe
                                         availableEnd.setHours(23, 59, 59, 999);
 
                                         if (selectedStart < availableStart || selectedEnd > availableEnd) {
-                                            setErrorMsg(`This caregiver only accepts bookings between ${availabilityRangeLabel}.`);
+                                            setErrorMsg(`This caretaker only accepts bookings between ${availabilityRangeLabel}.`);
                                             return;
                                         }
                                     }
@@ -248,7 +248,7 @@ export default function BookingModal({ caregiverName, caregiverId, dailyRate, pe
                                         setSuccessMsg("Booking request sent successfully!");
                                         setTimeout(() => onClose(), 1500);
                                     } else {
-                                        const backendMessage = result?.message || "Caregiver is unavailable during the requested dates.";
+                                        const backendMessage = result?.message || "Caretaker is unavailable during the requested dates.";
                                         setErrorMsg(backendMessage);
                                     }
                                 }}

@@ -54,7 +54,11 @@ export async function GET(request: NextRequest) {
     // Fetch all pets for this user
     const caregivers = await prisma.caregiverProfile.findMany({
       where,
-      orderBy: { createdAt: 'asc' },
+      orderBy: [
+        { averageRating: 'desc' },
+        { totalReviews: 'desc' },
+        { createdAt: 'asc' },
+      ],
       select: {
         id: true,
         name: true,

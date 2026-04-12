@@ -29,14 +29,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
+    // Check if user has a caregiverProfile (primary role CAREGIVER or secondaryRole CAREGIVER)
+    const caregiverProfile = await prisma.caregiverProfile.findUnique({
       where: { id: payload.userId },
-      select: { role: true },
     });
 
     let updatedUser;
 
-    if (user?.role === 'CAREGIVER') {
+    if (caregiverProfile) {
+      // User has a caregiver profile - update both user and caregiverProfile
       const result = await prisma.$transaction(async (tx) => {
         const u = await tx.user.update({
           where: { id: payload.userId },
@@ -55,7 +56,7 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        await tx.caregiverProfile.update({
+        const cp = await tx.caregiverProfile.update({
           where: { id: payload.userId },
           data: {
             name,
@@ -76,11 +77,12 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        return u;
+        return { ...u, caregiverProfile: cp };
       });
 
       updatedUser = result;
     } else {
+      // User does not have a caregiver profile - only update user fields
       updatedUser = await prisma.user.update({
         where: { id: payload.userId },
         data: {

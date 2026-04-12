@@ -1,8 +1,9 @@
 "use client"
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, CreditCard, QrCode, Smartphone, Wallet, X } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import { useToast } from "../../context/ToastContext";
+import { decodePaymentRequestContent } from "../../lib/paymentRequestMessage";
 
 type Transaction = {
     id: string;
@@ -17,16 +18,58 @@ type Transaction = {
     status: "Paid" | "Pending";
 };
 
+type PaymentMessage = {
+    content: string;
+};
+
 function sortByLatestDate<T extends { date: string }>(transactions: T[]) {
     return [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-type PaymentRequestPayload = {
-    bookingId: string;
-    petName: string;
-    amount: number;
-    status: "PENDING" | "PAID";
-};
+async function syncTransactionStatusFromMessages(transaction: Transaction, ownerId: string): Promise<Transaction> {
+    try {
+        const chatResponse = await fetch(`/api/chats?ownerId=${ownerId}&caregiverId=${transaction.caregiverId}`, {
+            credentials: "include",
+        });
+
+        const chatData = await chatResponse.json();
+        if (!chatResponse.ok || !chatData.chatId) {
+            return transaction;
+        }
+
+        const messagesResponse = await fetch(`/api/messages?chatId=${chatData.chatId}`, {
+            credentials: "include",
+        });
+
+        const messagesData = await messagesResponse.json();
+        if (!messagesResponse.ok || !Array.isArray(messagesData.messages)) {
+            return transaction;
+        }
+
+        const paidPaymentRequest = (messagesData.messages as PaymentMessage[]).some((message) => {
+            const paymentRequest = decodePaymentRequestContent(message.content);
+            return paymentRequest?.bookingId === transaction.bookingId && paymentRequest.status === "PAID";
+        });
+
+        return paidPaymentRequest ? { ...transaction, status: "Paid" } : transaction;
+    } catch {
+        return transaction;
+    }
+}
+
+async function syncPendingTransactionStatuses(transactions: Transaction[], ownerId: string) {
+    if (!transactions.some((transaction) => transaction.status === "Pending")) {
+        return transactions;
+    }
+
+    return Promise.all(
+        transactions.map((transaction) =>
+            transaction.status === "Pending"
+                ? syncTransactionStatusFromMessages(transaction, ownerId)
+                : Promise.resolve(transaction)
+        )
+    );
+}
 
 function PaymentModal({
     transaction,
@@ -298,45 +341,59 @@ export default function Transactions() {
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     useEffect(() => {
-        const fetchCurrentUser = async () => {
-            try {
-                const response = await fetch("/api/auth/me", { credentials: "include" });
-                const data = await response.json();
+        let isMounted = true;
 
-                if (response.ok && data.user?.id) {
-                    setCurrentUserId(data.user.id);
-                }
-            } catch {
-                setCurrentUserId(null);
-            }
-        };
-
-        const fetchTransactions = async () => {
+        const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
 
-                const response = await fetch("/api/payment", {
-                    method: "GET",
-                    credentials: "include",
-                });
+                const [userResponse, paymentResponse] = await Promise.all([
+                    fetch("/api/auth/me", { credentials: "include" }),
+                    fetch("/api/payment", {
+                        method: "GET",
+                        credentials: "include",
+                    }),
+                ]);
 
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.error || "Failed to fetch payments");
+                const [userData, paymentData] = await Promise.all([
+                    userResponse.json().catch(() => ({})),
+                    paymentResponse.json().catch(() => ({})),
+                ]);
+
+                if (!paymentResponse.ok) {
+                    throw new Error(paymentData?.error || "Failed to fetch payments");
                 }
 
-                setTransactions(data.transactions || []);
+                const ownerId = userResponse.ok ? (userData.user?.id ?? null) : null;
+                const baseTransactions = (paymentData.transactions || []) as Transaction[];
+                const synchronizedTransactions = ownerId
+                    ? await syncPendingTransactionStatuses(baseTransactions, ownerId)
+                    : baseTransactions;
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setCurrentUserId(ownerId);
+                setTransactions(synchronizedTransactions);
             } catch (fetchError) {
                 const message = fetchError instanceof Error ? fetchError.message : "Failed to fetch payments";
-                setError(message);
+                if (isMounted) {
+                    setError(message);
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
-        fetchCurrentUser();
-        fetchTransactions();
+        loadData();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const sortedTransactions = sortByLatestDate(transactions);

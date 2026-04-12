@@ -55,12 +55,12 @@ export default function Home() {
                         />
                         <FeatureCard 
                             title="Behavioral Blueprints"
-                            body="Create detailed pet profiles including triggers and sensitivities to ensure your caregiver is fully prepared."
+                            body="Create detailed pet profiles including triggers and sensitivities to ensure your caretaker is fully prepared."
                             icon={<ClipboardList size={24} />}
                         />
                         <FeatureCard 
                             title="Smart Matching"
-                            body="Find local caregivers using our matching engine, factoring in proximity and veterinary facility access."
+                            body="Find local caretakers using our matching engine, factoring in proximity and veterinary facility access."
                             icon={<MapPin size={24} />}
                         />
                         <FeatureCard 
@@ -83,12 +83,12 @@ export default function Home() {
                         <StepCard 
                             step="2"
                             title="Match & Request"
-                            description="Find a caregiver and send a time-limited check-in request."
+                            description="Find a caretaker and send a time-limited check-in request."
                         />
                         <StepCard 
                             step="3"
                             title="Secure Upload"
-                            description="The caregiver uploads a 10-15s video via a one-time link."
+                            description="The caretaker uploads a 10-15s video via a one-time link."
                         />
                         <StepCard 
                             step="4"
@@ -115,8 +115,8 @@ export default function Home() {
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900 mb-6">Frequently Asked Questions (FAQ)</h2>
                         <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
-                            <h3 className="font-bold text-slate-900 mb-2">How do you match and request caregivers?</h3>
-                            <p className="text-gray-600 text-sm">Use our search caregivers functions to search for one of our highly trained caregivers for your pets!</p>
+                            <h3 className="font-bold text-slate-900 mb-2">How do you match and request caretakers?</h3>
+                            <p className="text-gray-600 text-sm">Use our search caretakers functions to find one of our highly trained caretakers for your pets!</p>
                         </div>
                     </div>
                 </section>

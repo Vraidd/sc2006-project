@@ -251,7 +251,7 @@ export default function CaregiverDashboard() {
                 {/* WELCOME & REVENUE */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Caregiver Console</h1>
+                        <h1 className="text-3xl font-bold text-slate-900">Caretaker Console</h1>
                         <p className="text-slate-500 mt-1">Manage your active guests and pending requests.</p>
                     </div>
                     <div className="bg-white p-4 px-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">

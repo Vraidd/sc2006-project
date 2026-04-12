@@ -39,12 +39,12 @@ export function useAuth() {
 
 
 
-  async function login(identifier: string, password: string, rememberMe = false) {
+  async function login(email: string, password: string, rememberMe = false) {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password, rememberMe }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await res.json().catch(() => ({}));

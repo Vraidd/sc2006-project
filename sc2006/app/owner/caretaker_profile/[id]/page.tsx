@@ -77,7 +77,7 @@ const petIcons: Record<string, React.ReactNode> = {
 
 const dummycaregiver: caregiver = {
     name: "Sarah Chen",
-    location: "Bukit Batok",
+    location: "Not specified",
     // experience: "5+ years experience",
     // rating: 4.9,
     // reviews: 47,
@@ -331,7 +331,7 @@ export default function caregiverProfile() {
     }
 
     if (loading) return <div className="p-10">Loading profile...</div>;
-    if (!caregiver) return <div className="p-10">Caregiver not found</div>;
+    if (!caregiver) return <div className="p-10">Caretaker not found</div>;
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />
@@ -438,7 +438,7 @@ export default function caregiverProfile() {
                                     <Star size={32} className="text-slate-200 mb-4" strokeWidth={1.5} />
                                     <h3 className="text-lg font-bold text-slate-900">No Reviews yet</h3>
                                     <p className="text-sm text-slate-400 max-w-xs mt-1">
-                                        No reviews have been left for this caregiver.
+                                        No reviews have been left for this caretaker.
                                     </p>
                                 </div>
                             ) : (

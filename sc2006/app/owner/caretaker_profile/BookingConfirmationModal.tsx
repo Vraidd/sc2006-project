@@ -43,7 +43,7 @@ export default function BookingConfirmationModal({ caregiverName, dailyRate, day
                     {/* SUMMARY INVOICE */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-6 mb-8">
                         <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
-                            <span className="text-sm font-bold text-slate-500">Caregiver</span>
+                            <span className="text-sm font-bold text-slate-500">Caretaker</span>
                             <span className="text-sm font-black text-slate-900">{caregiverName}</span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
@@ -67,7 +67,7 @@ export default function BookingConfirmationModal({ caregiverName, dailyRate, day
                     <div className="flex items-center gap-3 bg-teal-50/50 p-4 rounded-xl border border-teal-100 mb-8">
                         <ShieldCheck size={20} className="text-teal-600 shrink-0" />
                         <p className="text-xs text-teal-800 font-medium leading-relaxed">
-                            By confirming, you agree to Pawsport's Trust & Safety terms. No charges are made until the caregiver accepts.
+                            By confirming, you agree to Pawsport's Trust & Safety terms. No charges are made until the caretaker accepts.
                         </p>
                     </div>
 
@@ -76,7 +76,7 @@ export default function BookingConfirmationModal({ caregiverName, dailyRate, day
                             Cancel
                         </button>
                         <button 
-                            onClick={() => { fireToast("success", "Request Sent!", "Your booking request has been sent to the caregiver."); onClose(); }}
+                            onClick={() => { fireToast("success", "Request Sent!", "Your booking request has been sent to the caretaker."); onClose(); }}
                             className="flex-1 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest py-4 transition-all shadow-xl shadow-teal-600/20 active:scale-95 flex justify-center items-center gap-2"
                         >
                             Send Request <ArrowRight size={16} />

@@ -34,6 +34,7 @@ describe('SearchCaregivers page', () => {
       { id: 'cg-3', name: 'Charlie Caregiver', location: 'C', dailyRate: 11, verified: true, rating: 4.2, reviews: 8, experience: 4, imageUrl: null, petsHandled: ['DOG'], locationCoords: [1.32, 103.82] },
       { id: 'cg-4', name: 'Delta Caregiver', location: 'D', dailyRate: 9, verified: true, rating: 4.7, reviews: 5, experience: 2, imageUrl: null, petsHandled: ['DOG'], locationCoords: [1.33, 103.83] },
       { id: 'cg-5', name: 'Echo Caregiver', location: 'E', dailyRate: 8, verified: true, rating: 2.1, reviews: 1, experience: 1, imageUrl: null, petsHandled: ['DOG'], locationCoords: [1.3692, 103.8455] },
+      { id: 'cg-6', name: 'Foxtrot Caregiver', location: 'F', dailyRate: 15, verified: true, rating: 1.8, reviews: 1, experience: 2, imageUrl: null, petsHandled: ['DOG'] },
     ]);
 
     oneMapFetch.mockImplementation((input: RequestInfo | URL) => {
@@ -57,10 +58,10 @@ describe('SearchCaregivers page', () => {
     await waitFor(() => expect(fetchCaregivers).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
 
-    const input = screen.getByPlaceholderText(/search by location, postal code, or caregiver name/i);
+    const input = screen.getByPlaceholderText(/search by location, postal code, or caretaker name/i);
     await userEvent.click(input);
 
-    const heading = screen.getByText('Top Caregivers');
+    const heading = screen.getByText('Top Caretakers');
     const section = heading.parentElement as HTMLElement;
     const items = within(section).getAllByText(/^(Bravo|Delta|Charlie) Caregiver$/);
 
@@ -75,7 +76,7 @@ describe('SearchCaregivers page', () => {
     await waitFor(() => expect(fetchCaregivers).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
 
-    const input = screen.getByPlaceholderText(/search by location, postal code, or caregiver name/i);
+    const input = screen.getByPlaceholderText(/search by location, postal code, or caretaker name/i);
     await userEvent.type(input, 'Ang Mo Kio');
 
     expect(await screen.findByText('Ang Mo Kio Ave 6')).toBeInTheDocument();
@@ -84,6 +85,6 @@ describe('SearchCaregivers page', () => {
     await userEvent.click(screen.getByText('Ang Mo Kio Ave 6'));
 
     expect(screen.getByDisplayValue('Ang Mo Kio Ave 6')).toBeInTheDocument();
-    expect(screen.getByText('2 Caregivers available')).toBeInTheDocument();
+    expect(screen.getByText('2 Caretakers available')).toBeInTheDocument();
   });
 });

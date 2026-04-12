@@ -623,7 +623,7 @@ export default function ChatUI() {
                                         <div className="flex justify-between items-baseline mb-0.5">
                                             <p className="text-md font-bold text-slate-900 truncate pr-2 leading-none">{chat.name}</p>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                {currentUserRole === "OWNER" && (
+                                                {currentUserRole && (
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -631,7 +631,7 @@ export default function ChatUI() {
                                                             setReportingChat(chat);
                                                         }}
                                                         className="text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-700"
-                                                        title={`Report ${chat.name}`}
+                                                        title={currentUserRole === "CAREGIVER" ? `Report Owner ${chat.name}` : `Report Caretaker ${chat.name}`}
                                                     >
                                                         Report
                                                     </button>

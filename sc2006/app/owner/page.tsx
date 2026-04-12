@@ -238,15 +238,16 @@ export default function Dashboard() {
             return matchesPet && matchesPrice && matchesVerification && matchesExperience && matchesAvailability;
         })
         .sort((a, b) => {
-            const hasAvailabilityFilter = !!(selectedDates.start || selectedDates.end);
-            if (hasAvailabilityFilter) {
-                const dayDiff = (b.availabilityMatchDays ?? 0) - (a.availabilityMatchDays ?? 0);
-                if (dayDiff !== 0) return dayDiff;
+            const overlapDiff = (b.availabilityMatchDays ?? 0) - (a.availabilityMatchDays ?? 0);
+            if (overlapDiff !== 0) return overlapDiff;
 
-                return (b.rating ?? 0) - (a.rating ?? 0);
-            }
+            const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+            if (ratingDiff !== 0) return ratingDiff;
 
-            return 0;
+            const reviewsDiff = (b.reviews ?? 0) - (a.reviews ?? 0);
+            if (reviewsDiff !== 0) return reviewsDiff;
+
+            return a.name.localeCompare(b.name);
         });
 
     return (

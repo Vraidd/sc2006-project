@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function Signin() {
     const router = useRouter();
     const { login, loading: authLoading } = useAuth();
-    const [identifier, setIdentifier] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
@@ -20,8 +20,8 @@ export default function Signin() {
         setErrorMsg(""); // clear prev errors
         setIsSuspendedError(false);
 
-        if (!identifier) {
-            setErrorMsg("Please enter your email or username.");
+        if (!email) {
+            setErrorMsg("Please enter your email.");
             return;
         }
         if (!password) {
@@ -29,14 +29,11 @@ export default function Signin() {
             return;
         }
 
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        const isEmail = emailRegex.test(identifier);
-        
-        console.log("Processing login:", { identifier, password, isEmail });
+        console.log("Processing login:", { email, password });
         // TODO: api thingy goes down here
         try {
             
-            const data = await login(identifier, password, rememberMe);
+            const data = await login(email, password, rememberMe);
             
             // Redirect based on role
             if (data.user.role === 'ADMIN') {
@@ -86,13 +83,13 @@ export default function Signin() {
 
                     <form onSubmit={loginHandler} className="space-y-5">
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                             <input 
-                                id="username" 
+                                id="email" 
                                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
-                                onChange={e => setIdentifier(e.target.value)} 
-                                type="text"
-                                name="identifier"
+                                onChange={e => setEmail(e.target.value)} 
+                                type="email"
+                                name="email"
                                 placeholder="name@example.com"
                             />
                         </div>

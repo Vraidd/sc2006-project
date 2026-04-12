@@ -32,7 +32,7 @@ const ownerLinks = [
     { name: "My Pets", href: "/owner/my_pets", icon: <PawPrint size={18}/> }, 
     { name: "Bookings", href: "/owner/my_bookings", icon: <Calendar size={18}/> },
     { name: "Payments", href: "/owner/transactions", icon: <CreditCard size={18}/> },
-    { name: "Search Caregivers", href: "/owner/search_caregivers", icon: <Search size={18}/> },
+    { name: "Search Caretakers", href: "/owner/search_caregivers", icon: <Search size={18}/> },
     { name: "Messages", href: "/owner/messages", icon: <MessageCircle size={18}/> }, 
 ];
 
@@ -45,7 +45,7 @@ const caregiverLinks = [
 
 const adminLinks = [
     { name: "Admin Dashboard", href: "/admin", icon: <Shield size={18}/> },
-    { name: "Verify Caregivers", href: "/admin/verified", icon: <UserCheck size={18}/> },
+    { name: "Verify Caretakers", href: "/admin/verified", icon: <UserCheck size={18}/> },
     { name: "Refund Requests", href: "/admin/refunds", icon: <Banknote size={18}/> }, 
     { name: "Incident Management", href: "/admin/incidents", icon: <AlertTriangle size={18}/> }, 
 ];
@@ -107,6 +107,11 @@ export default function Navbar() {
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isEnablingOwnerMode, setIsEnablingOwnerMode] = useState(false);
+    const [adminRequestCounts, setAdminRequestCounts] = useState({
+        verifyCaregivers: 0,
+        refundRequests: 0,
+        incidentManagement: 0,
+    });
 
     // refs
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -162,11 +167,11 @@ export default function Navbar() {
     const ownerCaregiverActionLabel = pathname.startsWith("/caregiver") && ownerHasCaregiverSecondaryRole
         ? "Owner's Page"
         : ownerHasCaregiverSecondaryRole
-            ? "Caregiver's Page"
-            : "Apply for Caregiver";
+            ? "Caretaker's Page"
+            : "Apply for Caretaker";
 
     const caregiverOwnerActionHref = isCaregiverInOwnerMode ? "/caregiver" : "/owner";
-    const caregiverOwnerActionLabel = isCaregiverInOwnerMode ? "Caregiver's Page" : "Owner's Page";
+    const caregiverOwnerActionLabel = isCaregiverInOwnerMode ? "Caretaker's Page" : "Owner's Page";
 
     const dualRoleActionHref = currentRole === "OWNER" ? ownerCaregiverActionHref : caregiverOwnerActionHref;
     const dualRoleActionLabel = currentRole === "OWNER" ? ownerCaregiverActionLabel : caregiverOwnerActionLabel;
@@ -202,11 +207,64 @@ export default function Navbar() {
         : isCaregiverInOwnerMode
             ? "OWNER"
             : currentRole;
+    const displayRoleLabel = displayRole === "CAREGIVER" ? "CARETAKER" : displayRole;
     const profileHref = isOwnerInCaregiverMode
         ? "/caregiver/profile"
         : isCaregiverInOwnerMode
             ? "/owner/profile"
             : `/${currentRole?.toLowerCase()}/profile`;
+
+    useEffect(() => {
+        const isAdmin = currentRole === "ADMIN";
+        if (!isAdmin) return;
+
+        const loadAdminRequestCounts = async () => {
+            try {
+                const [pendingApplicationsRes, refundsRes, incidentsRes] = await Promise.all([
+                    fetch('/api/admin/pending-applications', { credentials: 'include' }),
+                    fetch('/api/admin/refunds', { credentials: 'include' }),
+                    fetch('/api/incidents', { credentials: 'include' }),
+                ]);
+
+                let verifyCaregivers = 0;
+                let refundRequests = 0;
+                let incidentManagement = 0;
+
+                if (pendingApplicationsRes.ok) {
+                    const data = await pendingApplicationsRes.json().catch(() => ({}));
+                    verifyCaregivers = Array.isArray(data.applications) ? data.applications.length : 0;
+                }
+
+                if (refundsRes.ok) {
+                    const data = await refundsRes.json().catch(() => ({}));
+                    refundRequests = Number(data.stats?.pendingCount ?? data.stats?.pending ?? 0);
+                }
+
+                if (incidentsRes.ok) {
+                    const data = await incidentsRes.json().catch(() => ({}));
+                    const incidents = Array.isArray(data.incidents) ? data.incidents : [];
+                    incidentManagement = incidents.filter((inc: any) => inc.status === 'PENDING' && inc.type !== 'REFUND').length;
+                }
+
+                setAdminRequestCounts({
+                    verifyCaregivers,
+                    refundRequests,
+                    incidentManagement,
+                });
+            } catch (error) {
+                console.error('Failed to fetch admin request counts:', error);
+            }
+        };
+
+        loadAdminRequestCounts();
+    }, [currentRole]);
+
+    const getAdminBubbleCount = (linkName: string) => {
+        if (linkName === 'Verify Caretakers') return adminRequestCounts.verifyCaregivers;
+        if (linkName === 'Refund Requests') return adminRequestCounts.refundRequests;
+        if (linkName === 'Incident Management') return adminRequestCounts.incidentManagement;
+        return 0;
+    };
 
     const handleLogout = () => {
         setIsMobileMenuOpen(false);
@@ -356,6 +414,7 @@ export default function Navbar() {
                 <div className="hidden lg:flex justify-center items-center gap-6">
                     {activeLinks.map((link) => {
                         const isActive = pathname === link.href;
+                        const bubbleCount = currentRole === 'ADMIN' ? getAdminBubbleCount(link.name) : 0;
                         return (
                             <Link 
                                 key={link.name} 
@@ -365,6 +424,11 @@ export default function Navbar() {
                                 }`}
                             >
                                 {link.icon} {link.name}
+                                {bubbleCount > 0 && (
+                                    <span className="ml-1 inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-black leading-none">
+                                        {bubbleCount}
+                                    </span>
+                                )}
                             </Link>
                         )
                     })}
@@ -421,7 +485,7 @@ export default function Navbar() {
                                 {isProfileDropdownOpen && (
                                     <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                                         <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
-                                            <p className="text-xs font-bold text-slate-900">{displayRole} ACCOUNT</p>
+                                            <p className="text-xs font-bold text-slate-900">{displayRoleLabel} ACCOUNT</p>
                                         </div>
                                         <div className="p-2">
                                             {/* VIEW PROFILE */}
@@ -527,6 +591,9 @@ export default function Navbar() {
                     <div className="flex flex-col px-6 pt-2 pb-8 h-full">
                         <div className="space-y-2 grow">
                             {activeLinks.map((link) => (
+                                (() => {
+                                    const bubbleCount = currentRole === 'ADMIN' ? getAdminBubbleCount(link.name) : 0;
+                                    return (
                                 <Link 
                                     key={link.name} 
                                     href={link.href} 
@@ -536,7 +603,14 @@ export default function Navbar() {
                                     }`}
                                 >
                                     {link.icon} {link.name}
+                                    {bubbleCount > 0 && (
+                                        <span className="ml-auto inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-black leading-none">
+                                            {bubbleCount}
+                                        </span>
+                                    )}
                                 </Link>
+                                    );
+                                })()
                             ))}
                         </div>
                         
@@ -552,7 +626,7 @@ export default function Navbar() {
                                                     : (DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || '')
                                                 }
                                             </div>
-                                            <p className="text-sm font-bold text-slate-900">Signed in as {displayRole}</p>
+                                            <p className="text-sm font-bold text-slate-900">Signed in as {displayRoleLabel}</p>
                                         </div>
                                         
                                         {/* VIEW PROFILE (EXCEPT ADMIN) */}

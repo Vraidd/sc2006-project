@@ -14,7 +14,7 @@ import { useToast } from "../../context/ToastContext";
 export default function ReviewEvidence() {
     const { fireToast } = useToast();
     const handleApprove = () => fireToast("success", "Check-in Approved", "Record saved to audit log.");
-    const handleReupload = () => fireToast("info", "Re-upload Requested", "Caregiver has been notified in-app.");
+    const handleReupload = () => fireToast("info", "Re-upload Requested", "Caretaker has been notified in-app.");
     const handleFlag = () => fireToast("warning", "Incident Flagged", "Redirecting to Incident Report...");
 
     return (

@@ -73,24 +73,26 @@ function AdminIncidentsContent() {
         throw new Error(data.error || "Failed to fetch incidents");
       }
 
-      const records: IncidentRecord[] = (data.incidents ?? []).map((incident: any) => ({
-        id: incident.id,
-        bookingId: incident.bookingId,
-        reporterId: incident.reporterId,
-        caregiverId: incident.caregiverId,
-        type: incident.type,
-        title: incident.title,
-        priority: incident.priority,
-        status: incident.status,
-        desc: incident.description,
-        attachmentUrl: incident.attachmentUrl,
-        attachmentType: incident.attachmentType,
-        attachmentName: incident.attachmentName,
-        filed: new Date(incident.filed).toLocaleDateString(),
-        datetime: new Date(incident.filed),
-        reporter: incident.reporter,
-        caretaker: incident.caretaker,
-      }));
+      const records: IncidentRecord[] = (data.incidents ?? [])
+        .filter((incident: any) => incident.type !== "REFUND")
+        .map((incident: any) => ({
+          id: incident.id,
+          bookingId: incident.bookingId,
+          reporterId: incident.reporterId,
+          caregiverId: incident.caregiverId,
+          type: incident.type,
+          title: incident.title,
+          priority: incident.priority,
+          status: incident.status,
+          desc: incident.description,
+          attachmentUrl: incident.attachmentUrl,
+          attachmentType: incident.attachmentType,
+          attachmentName: incident.attachmentName,
+          filed: new Date(incident.filed).toLocaleDateString(),
+          datetime: new Date(incident.filed),
+          reporter: incident.reporter,
+          caretaker: incident.caretaker,
+        }));
 
       setIncidents(records);
     } catch (error) {

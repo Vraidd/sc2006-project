@@ -4,6 +4,37 @@ import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 import { z } from 'zod';
 
+type VerificationDoc = {
+  name: string;
+  content?: string;
+};
+
+function parseVerificationDocs(raw: string | null): VerificationDoc[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((doc): doc is VerificationDoc => Boolean(doc && typeof doc.name === 'string'))
+        .map((doc) => ({
+          name: doc.name,
+          content: typeof doc.content === 'string' ? doc.content : undefined,
+        }));
+    }
+  } catch {
+    // Legacy format support: comma-separated filenames.
+  }
+
+  return raw
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({ name }));
+}
+
 // GET - Fetch pending caregiver applications
 export async function GET() {
   try {
@@ -74,7 +105,7 @@ export async function GET() {
       petPreferences: app.petPreferences,
       availabilityStartDate: app.availabilityStartDate,
       availabilityEndDate: app.availabilityEndDate,
-      verificationDocs: app.verificationDoc ? app.verificationDoc.split(', ') : [],
+      verificationDocs: parseVerificationDocs(app.verificationDoc),
       avatar: app.user.avatar,
       phone: app.user.phone,
       latitude: app.user.latitude,

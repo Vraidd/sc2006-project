@@ -96,6 +96,7 @@ export default function EditCaregiverProfile() {
     const [isSaving, setIsSaving] = useState(false);
     const { user, loading } = useAuth();
     const { fireToast } = useToast();
+    const [isCaregiverVerified, setIsCaregiverVerified] = useState(false);
     
     // Core profile data
     const [profileData, setProfileData] = useState({
@@ -128,6 +129,7 @@ export default function EditCaregiverProfile() {
     useEffect(() => {
         if (user && !loading) {
             const cp = (user as any).caregiverProfile;
+            setIsCaregiverVerified(cp?.verified === true);
             setProfileData({
                 email: user.email || '',
                 name: user.name || '',
@@ -232,6 +234,19 @@ export default function EditCaregiverProfile() {
                 phone: data.user.phone || prev.phone,
                 biography: data.user.biography || prev.biography,
             }));
+
+            // Update pet preferences and services from caregiver profile response
+            if (data.user.caregiverProfile) {
+                if (Array.isArray(data.user.caregiverProfile.petPreferences)) {
+                    setSelectedPets(data.user.caregiverProfile.petPreferences);
+                }
+                if (Array.isArray(data.user.caregiverProfile.dogSizes)) {
+                    setSelectedSizes(data.user.caregiverProfile.dogSizes);
+                }
+                if (Array.isArray(data.user.caregiverProfile.services)) {
+                    setSelectedServices(data.user.caregiverProfile.services);
+                }
+            }
             
             // Temporary visual feedback
             fireToast("success", "Profile Saved", "Your profile has been updated successfully.");
@@ -476,20 +491,22 @@ export default function EditCaregiverProfile() {
                             </div>
                         </section>
 
-                        <section className="bg-white rounded-4xl border border-slate-100 p-8">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
-                                    <ShieldCheck size={20} />
+                        {isCaregiverVerified && (
+                            <section className="bg-white rounded-4xl border border-slate-100 p-8">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
+                                        <ShieldCheck size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-900 uppercase">Verification</h3>
+                                        <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">Verified Peer</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-black text-slate-900 uppercase">Verification</h3>
-                                    <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">Verified Peer</p>
-                                </div>
-                            </div>
-                            <p className="text-sm text-slate-500 leading-relaxed">
-                                To maintain your badge, ensure your information remains accurate.
-                            </p>
-                        </section>
+                                <p className="text-sm text-slate-500 leading-relaxed">
+                                    To maintain your badge, ensure your information remains accurate.
+                                </p>
+                            </section>
+                        )}
                     </div>
                 </div>
             </main>

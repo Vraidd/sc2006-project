@@ -41,7 +41,7 @@ export default function ActiveCare() {
                             <p className="text-slate-400 text-base mt-2 font-medium">Feb 16 - Feb 19, 2026</p>
                         </div>
                         <div className="text-right hidden sm:block">
-                            <p className="text-xs text-slate-500 font-black uppercase tracking-[0.2em] mb-2">Caregiver</p>
+                            <p className="text-xs text-slate-500 font-black uppercase tracking-[0.2em] mb-2">Caretaker</p>
                             <p className="font-black text-teal-400 text-xl">Sarah Chen</p>
                         </div>
                     </div>

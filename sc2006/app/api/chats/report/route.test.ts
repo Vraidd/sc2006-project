@@ -112,8 +112,15 @@ describe('chat report route', () => {
     const response = await POST(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(payload.error).toMatch(/Only owners/i);
+    expect(response.status).toBe(201);
+    expect(payload.success).toBe(true);
+    expect(mockPrisma.incident.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        reporterId: 'caregiver-1',
+        caregiverId: 'owner-1',
+        description: expect.stringContaining('owner'),
+      }),
+    }));
   });
 
   it('rejects invalid attachment type', async () => {

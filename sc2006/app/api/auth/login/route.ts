@@ -22,14 +22,11 @@ export async function POST(request: Request) {
     // Validate input
     const validatedData = loginSchema.parse(body);
     
-    // Find user by email
-    const user = await prisma.user.findFirst({
-        where: {
-            OR: [
-            { email: validatedData.identifier },
-            { name: validatedData.identifier }
-            ]
-        },
+    // Find user by email only.
+    const user = await prisma.user.findUnique({
+      where: {
+        email: validatedData.email,
+      },
         select: { 
             id: true, 
             email: true,
